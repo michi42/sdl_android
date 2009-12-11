@@ -35,8 +35,10 @@ LOCAL_CFLAGS := $(foreach D, $(CG_SUBDIRS), -I$(CG_SRCDIR)/$(D)) \
 				-I$(LOCAL_PATH)/../sdl/include \
 				-I$(LOCAL_PATH)/../sdl_mixer \
 				-I$(LOCAL_PATH)/../stlport/stlport \
+				-I$(LOCAL_PATH)/../tremor \
 
-LOCAL_CFLAGS += -DBUILD_SDL -DBUILD_WITH_OGG
+
+LOCAL_CFLAGS += -DBUILD_SDL
 
 #Change C++ file extension as appropriate
 LOCAL_CPP_EXTENSION := .cpp

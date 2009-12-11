@@ -102,7 +102,7 @@ public:
 
 	virtual void operator()(_Data data) { (*m_obj.*m_fct)(data); }
 	virtual bool operator==(const typename Event<_Data>::Handler& hndl) {
-		const MemberFunction* hPtr = dynamic_cast<const MemberFunction*>(&hndl);
+		const MemberFunction* hPtr = reinterpret_cast<const MemberFunction*>(&hndl);
 		if(hPtr == NULL) return false;
 		return hPtr->m_obj == m_obj && hPtr->m_fct == m_fct;
 	}
@@ -122,7 +122,7 @@ public:
 
 	virtual void operator()(_Data data) { (m_fct)(data); }
 	virtual bool operator==(const typename Event<_Data>::Handler& hndl) {
-		const StaticFunction* hPtr = dynamic_cast<const StaticFunction*>(&hndl);
+		const StaticFunction* hPtr = reinterpret_cast<const StaticFunction*>(&hndl);
 		if(hPtr == NULL) return false;
 		return hPtr->m_fct == m_fct;
 	}
