@@ -39,7 +39,7 @@
  * Fixing the program to send less polygons to the GPU is left
  * as an exercise to the reader. As always, patches welcomed :-)
  */
-package de.schwardtnet.alienblaster;
+package com.pckf.commandergenius;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -69,9 +69,9 @@ import java.nio.ByteBuffer;
 // TODO: export vibrator to SDL - interface is available in SDL 1.3
 
 class Globals {
-	public static String ApplicationName = "alienblaster";
+	public static String ApplicationName = "commandergenius";
 	// Should be zip file
-	public static String DataDownloadUrl = "http://sites.google.com/site/xpelyax/Home/alienblaster110_data.zip?attredirects=0&d=1";
+	public static String DataDownloadUrl = "http://sites.google.com/site/xpelyax/Home/commandergenius_data.zip?attredirects=0&d=1";
 	// Set DownloadToSdcard to true if your app data is bigger than 5 megabytes.
 	// It will download app data to /sdcard/alienblaster then,
 	// otherwise it will download it to /data/data/de.schwardtnet.alienblaster/files -
