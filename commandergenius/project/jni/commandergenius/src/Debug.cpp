@@ -35,6 +35,7 @@ void RaiseDebugger() {
 #include <unistd.h>
 #include <sys/sysctl.h>
 
+
 // Based on Apple's recommended method as described in
 // http://developer.apple.com/qa/qa2004/qa1361.html
 static bool AmIBeingDebugged()
@@ -71,6 +72,10 @@ static bool AmIBeingDebugged()
 #include <fcntl.h>
 #include <cstring>
 #include <unistd.h>
+
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 
 
 static bool AmIBeingDebugged() {
@@ -544,6 +549,9 @@ void Logger::unlock() {
 static void CoutPrint(const std::string& str) {
 	// TODO: We have used std::cout here before but it doesn't seem to work after a while for some reason.
 	printf("%s", str.c_str());
+	#ifdef ANDROID
+	__android_log_print(ANDROID_LOG_INFO, "CommanderGenius", str.c_str());
+	#endif
 }
 
 int Logger_Verbosity = 0;
