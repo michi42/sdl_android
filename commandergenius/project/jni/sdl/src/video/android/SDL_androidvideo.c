@@ -262,6 +262,10 @@ SDL_Surface *ANDROID_SetVideoMode(_THIS, SDL_Surface *current,
 	current->pitch = memX * (bpp / 8);
 	current->pixels = memBuffer;
 	
+	char t[256];
+	sprintf(t, "ANDROID_SetVideoMode(): %ix%ix%ibpp", memX, memY, bpp);
+	__android_log_print(ANDROID_LOG_INFO, "libSDL", t);
+	
 	/* Wait 'till we can draw */
 	ANDROID_FlipHWSurface(this, current);
 	/* We're done */
@@ -339,6 +343,12 @@ static void ANDROID_UpdateRects(_THIS, int numrects, SDL_Rect *rects)
 
 static int ANDROID_FlipHWSurface(_THIS, SDL_Surface *surface)
 {
+	if( memBuffer == NULL )
+	{
+		__android_log_print(ANDROID_LOG_INFO, "libSDL", "ANDROID_FlipHWSurface: error: are you trying to draw without SDL_init");
+		return;
+	}
+
 	//__android_log_print(ANDROID_LOG_INFO, "libSDL", "Frame is ready to render");
 	SDL_mutexP(WaitForNativeRender);
 	while( WaitForNativeRenderState != Render_State_Finished )

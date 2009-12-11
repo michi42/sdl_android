@@ -98,7 +98,8 @@ void CVideoDriver::initResolutionList()
 	st_resolution resolution;
 	char buf[256];
 	m_Resolutionlist.clear();
-
+	
+	#ifndef ANDROID // Awful trick to init SDL twice, my SDL port doesn't accept that!
 	std::ifstream ResolutionFile; OpenGameFileR(ResolutionFile, "resolutions.cfg");
 	if(!ResolutionFile)
 	{
@@ -148,6 +149,7 @@ void CVideoDriver::initResolutionList()
 		// It must happen, because this is a test for resolutions
 		// are checked against your graphics adapter
 	}
+	#endif
 
 	if(m_Resolutionlist.empty()) {
 		resolution.width = 320;
