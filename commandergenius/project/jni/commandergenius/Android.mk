@@ -6,11 +6,9 @@ LOCAL_MODULE := commandergenius
 
 CG_SUBDIRS := \
 src \
-src/cinematics \
 src/dialog \
 src/include \
 src/include/vorbis \
-src/include/gui \
 src/include/fileio \
 src/vorbis \
 src/vorticon \
@@ -19,11 +17,14 @@ src/vorticon/finale \
 src/vorticon/playgame \
 src/vorticon/infoscenes \
 src/graphics \
+src/graphics/effects \
 src/hqp \
 src/sdl \
+src/sdl/sys \
 src/sdl/sound \
 src/sdl/video \
 src/scale2x \
+src/galaxy \
 src/fileio \
 src/common \
 src/common/Menu \
