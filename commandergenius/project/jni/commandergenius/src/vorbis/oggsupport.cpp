@@ -7,8 +7,13 @@
 #ifdef OGG
 #include <SDL.h>
 // vorbis headers
+#ifdef OGG_USE_TREMOR
+#include <ivorbiscodec.h>
+#include <ivorbisfile.h>
+#else
 #include <codec.h>
 #include <vorbisfile.h>
+#endif
 
 #include <cstdio>
 #include <iostream>
@@ -31,7 +36,13 @@ short openOGGSound(FILE *fp, SDL_AudioSpec *pspec, Uint16 format, stHQSound *pso
 	int result;
     OggVorbis_File  oggStream;     // stream handle
 
-    if((result = ov_open_callbacks(fp, &oggStream, NULL, 0, OV_CALLBACKS_DEFAULT)) < 0)
+    if((result = 
+#ifndef OGG_USE_TREMOR
+                  ov_open_callbacks(fp, &oggStream, NULL, 0, OV_CALLBACKS_DEFAULT) // OV_CALLBACKS_DEFAULT is workaround for Windows
+#else
+                  ov_open(fp, &oggStream, NULL, 0) // You won't use libtremor on Windows anyway
+#endif
+                      ) < 0)
     {
         fclose(fp);
         return 1;
@@ -57,7 +68,11 @@ short openOGGSound(FILE *fp, SDL_AudioSpec *pspec, Uint16 format, stHQSound *pso
         psound->sound_len = 0;
         do {
 			// Read up to a buffer's worth of decoded sound data
-			bytes = ov_read(&oggStream, array, BUFFER_SIZE, 0, 2, 1, &bitStream);
+			bytes = ov_read(&oggStream, array, BUFFER_SIZE, 
+#ifndef OGG_USE_TREMOR
+									0, 2, 1,
+#endif
+									&bitStream);
 			// Append to end of buffer
 			buffer.insert(buffer.end(), array, array + bytes);
         } while (bytes > 0);

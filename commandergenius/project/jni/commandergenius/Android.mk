@@ -39,7 +39,8 @@ LOCAL_CFLAGS := $(foreach D, $(CG_SUBDIRS), -I$(CG_SRCDIR)/$(D)) \
 				-I$(LOCAL_PATH)/../tremor \
 
 
-LOCAL_CFLAGS += -DBUILD_SDL
+LOCAL_CFLAGS += -DBUILD_SDL -DOGG -DOGG_USE_TREMOR
+# -DOGG -DOGG_USE_TREMOR # Ogg + Tremor crashes CG
 
 #Change C++ file extension as appropriate
 LOCAL_CPP_EXTENSION := .cpp
