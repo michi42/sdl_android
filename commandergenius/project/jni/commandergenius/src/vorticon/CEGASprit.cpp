@@ -16,6 +16,7 @@
 #include "../FindFile.h"
 #include "../sdl/CVideoDriver.h"
 #include "../vorticon/spritedefines.h"
+#include "../lz.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -38,17 +39,15 @@ char LoadTGA(const std::string &file, unsigned char **image, int *widthout, int 
 CEGASprit::CEGASprit(int planesize,
 					 long spritestartloc,
 					 int numsprites,
-					 long spriteloc)
+					 long spriteloc,
+					 const std::string &gamepath) :
+m_gamepath(gamepath),
+EGASpriteModell(NULL)
 {
 	m_planesize = planesize;
 	m_spritestartloc = spritestartloc;
 	m_numsprites = numsprites;
 	m_spriteloc = spriteloc;
-	Sprite = NULL;
-}
-
-CEGASprit::~CEGASprit() {
-	if(Sprite) delete [] Sprite, Sprite = NULL;
 }
 
 
@@ -56,26 +55,26 @@ bool CEGASprit::loadHead(char *data)
 {
 	data += m_spritestartloc;
 	
-	Sprite = new st_sprite[m_numsprites];
+	EGASpriteModell = new st_sprite[m_numsprites];
 	
     for(int i=0 ; i<m_numsprites ; i++ )
     {
-    	memcpy(&(Sprite[i].width),data+128*i,2);
-    	memcpy(&(Sprite[i].height),data+128*i+2,2);
-    	memcpy(&(Sprite[i].location_offset),data+128*i+4,2);
-    	memcpy(&(Sprite[i].location),data+128*i+6,2);
-    	memcpy(&(Sprite[i].hitbox_l),data+128*i+8,2);
-    	memcpy(&(Sprite[i].hitbox_u),data+128*i+10,2);
-    	memcpy(&(Sprite[i].hitbox_r),data+128*i+12,2);
-    	memcpy(&(Sprite[i].hitbox_b),data+128*i+14,2);
-    	memcpy(Sprite[i].name,data+128*i+16,12);
-    	memcpy(&(Sprite[i].hv_offset),data+128*i+28,4);
+    	memcpy(&(EGASpriteModell[i].width),data+128*i,2);
+    	memcpy(&(EGASpriteModell[i].height),data+128*i+2,2);
+    	memcpy(&(EGASpriteModell[i].location_offset),data+128*i+4,2);
+    	memcpy(&(EGASpriteModell[i].location),data+128*i+6,2);
+    	memcpy(&(EGASpriteModell[i].hitbox_l),data+128*i+8,2);
+    	memcpy(&(EGASpriteModell[i].hitbox_u),data+128*i+10,2);
+    	memcpy(&(EGASpriteModell[i].hitbox_r),data+128*i+12,2);
+    	memcpy(&(EGASpriteModell[i].hitbox_b),data+128*i+14,2);
+    	memcpy(EGASpriteModell[i].name,data+128*i+16,12);
+    	memcpy(&(EGASpriteModell[i].hv_offset),data+128*i+28,4);
 		
-    	Sprite[i].width *= 8; // Where the width is divided by 8
-    	Sprite[i].hitbox_l >>= 8;
-    	Sprite[i].hitbox_u >>= 8;
-    	Sprite[i].hitbox_r >>= 8;
-    	Sprite[i].hitbox_b >>= 8;
+    	EGASpriteModell[i].width *= 8; // Where the width is divided by 8
+    	EGASpriteModell[i].hitbox_l >>= 8;
+    	EGASpriteModell[i].hitbox_u >>= 8;
+    	EGASpriteModell[i].hitbox_r >>= 8;
+    	EGASpriteModell[i].hitbox_b >>= 8;
     }
 	
     return true;
@@ -128,16 +127,18 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 								  plane5 + m_spriteloc);
 	
 	// load the image data
+	g_pGfxEngine->freeSprites();
 	g_pGfxEngine->createEmptySprites(MAX_SPRITES+1);
 	for(int i=0 ; i<m_numsprites ; i++)
 	{
-		g_pGfxEngine->Sprite[i]->setSize( Sprite[i].width, Sprite[i].height );
-		g_pGfxEngine->Sprite[i]->setBouncingBoxCoordinates( (Sprite[i].hitbox_l << (CSF-TILE_S)),
-														    (Sprite[i].hitbox_u << (CSF-TILE_S)),
-														    (Sprite[i].hitbox_r << (CSF-TILE_S)),
-														    (Sprite[i].hitbox_b << (CSF-TILE_S)) );
-		g_pGfxEngine->Sprite[i]->createSurface( g_pVideoDriver->BlitSurface->flags,
-											   g_pGfxEngine->Palette.m_Palette );
+		CSprite &Sprite = g_pGfxEngine->getSprite(i);
+		Sprite.setSize( EGASpriteModell[i].width, EGASpriteModell[i].height );
+		Sprite.setBouncingBoxCoordinates( (EGASpriteModell[i].hitbox_l << (CSF-TILE_S)),
+														    (EGASpriteModell[i].hitbox_u << (CSF-TILE_S)),
+														    (EGASpriteModell[i].hitbox_r << (CSF-TILE_S)),
+														    (EGASpriteModell[i].hitbox_b << (CSF-TILE_S)) );
+		Sprite.createSurface( g_pVideoDriver->BlitSurface->flags,
+							   g_pGfxEngine->Palette.m_Palette );
 	}
 	
 	char c;
@@ -145,7 +146,7 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 	{
 		for(int s=0 ; s<m_numsprites ; s++)
 		{
-			sfc = g_pGfxEngine->Sprite[s]->getSDLSurface();
+			sfc = g_pGfxEngine->getSprite(s).getSDLSurface();
 			if(SDL_MUSTLOCK(sfc)) SDL_LockSurface(sfc);
 			pixel = (Uint8*) sfc->pixels;
 			
@@ -170,8 +171,9 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 	// use white on black masks whereas keen uses black on white.
 	for(int s=0 ; s<m_numsprites ; s++)
 	{
-		pixsfc = g_pGfxEngine->Sprite[s]->getSDLSurface();
-		sfc = g_pGfxEngine->Sprite[s]->getSDLMaskSurface();
+		CSprite &Sprite = g_pGfxEngine->getSprite(s);
+		pixsfc = Sprite.getSDLSurface();
+		sfc = Sprite.getSDLMaskSurface();
 		
 		if(SDL_MUSTLOCK(pixsfc)) SDL_LockSurface(pixsfc);
 		if(SDL_MUSTLOCK(sfc)) SDL_LockSurface(sfc);
@@ -185,8 +187,6 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 				pixel[y*sfc->w + x] = Planes->getbit(RawData, 4) ? ((Uint8*)pixsfc->pixels)[y*pixsfc->w + x] : 15;
 			}
 		}
-		
-		
 		if(SDL_MUSTLOCK(sfc)) SDL_UnlockSurface(sfc);
 		if(SDL_MUSTLOCK(pixsfc)) SDL_UnlockSurface(pixsfc);
 	}
@@ -196,16 +196,20 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 	if(RawData){ delete[] RawData; RawData = NULL;}
 	
 	// Now load the special TGA Sprites if some are available
-	LoadSpecialSprites( g_pGfxEngine->Sprite );
-	
-	for(Uint16 s=0 ; s<g_pGfxEngine->Sprite.size() ; s++)
+	LoadSpecialSprites( g_pGfxEngine->getSpriteVec() );
+
+	for(Uint16 s=0 ; s<g_pGfxEngine->getSpriteVec().size() ; s++)
 	{
-		g_pGfxEngine->Sprite[s]->optimizeSurface();
-		g_pGfxEngine->Sprite[s]->applyTransparency();
+		CSprite &Sprite = g_pGfxEngine->getSprite(s);
+		Sprite.optimizeSurface();
+		Sprite.applyTransparency();
 	}
 	
+	// Apply the sprites for player 2,3 and 4
+	//DerivePlayerSprites( g_pGfxEngine->getSpriteVec() );
+
 	// Now create special sprites, like those for effects and the doors!
-	DeriveSpecialSprites( g_pGfxEngine->Tilemap, g_pGfxEngine->Sprite );
+	DeriveSpecialSprites( g_pGfxEngine->Tilemap, g_pGfxEngine->getSpriteVec() );
 
 	return true;
 }
@@ -214,7 +218,7 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 // load a 32-bit RGBA TGA file into sprite 's', and add colors to the palette
 // as needed so that it can be shown exactly as found in the file.
 // returns nonzero on failure.
-char CEGASprit::LoadTGASprite( const std::string &filename, CSprite *sprite )
+char CEGASprit::LoadTGASprite( const std::string &filename, CSprite &sprite )
 {
 	unsigned char *image, *base;
 	int x,y;
@@ -224,9 +228,15 @@ char CEGASprit::LoadTGASprite( const std::string &filename, CSprite *sprite )
 	std::string fname;
 	Uint8 *pixel, *maskpx;
 	
-	fname = GFXDIR + filename;
+	fname = m_gamepath + filename;
+
+	// Look in local location than in global, if tga was not found!
 	if (LoadTGA(fname, &image, &w, &h))
-		return 1;
+	{
+		fname = GFXDIR + filename;
+		if (LoadTGA(fname, &image, &w, &h))
+			return 1;
+	}
 	
 	if (w > MAX_SPRITE_WIDTH || h > MAX_SPRITE_HEIGHT)
 	{
@@ -235,11 +245,11 @@ char CEGASprit::LoadTGASprite( const std::string &filename, CSprite *sprite )
 	}
 	
 	base = image;
-	sprite->setSize(w, h);
-	sprite->createSurface( g_pVideoDriver->BlitSurface->flags, g_pGfxEngine->Palette.m_Palette );
+	sprite.setSize(w, h);
+	sprite.createSurface( g_pVideoDriver->BlitSurface->flags, g_pGfxEngine->Palette.m_Palette );
 	
-	SDL_Surface *sfc = sprite->getSDLSurface();
-	SDL_Surface *msksfc = sprite->getSDLMaskSurface();
+	SDL_Surface *sfc = sprite.getSDLSurface();
+	SDL_Surface *msksfc = sprite.getSDLMaskSurface();
 	
 	if(SDL_MUSTLOCK(sfc))	SDL_LockSurface(sfc);
 	if(SDL_MUSTLOCK(msksfc))	SDL_LockSurface(msksfc);
@@ -269,10 +279,10 @@ char CEGASprit::LoadTGASprite( const std::string &filename, CSprite *sprite )
 	if(SDL_MUSTLOCK(msksfc)) SDL_UnlockSurface(msksfc);
 	if(SDL_MUSTLOCK(sfc))	 SDL_UnlockSurface(sfc);
 	
-	sprite->m_bboxX1=0;
-	sprite->m_bboxY1=0;
-	sprite->m_bboxX2=sprite->getWidth();
-	sprite->m_bboxY2=sprite->getHeight();
+	sprite.m_bboxX1=0;
+	sprite.m_bboxY1=0;
+	sprite.m_bboxX2=sprite.getWidth();
+	sprite.m_bboxY2=sprite.getHeight();
 	
 	delete [] base;
 	
@@ -281,7 +291,7 @@ char CEGASprit::LoadTGASprite( const std::string &filename, CSprite *sprite )
 
 // load special clonekeen-specific sprites from the .raw files
 // Code by Caitlin Shaw
-void CEGASprit::LoadSpecialSprites( std::vector<CSprite*> &sprite )
+void CEGASprit::LoadSpecialSprites( std::vector<CSprite> &sprite )
 {
 	LoadTGASprite("100.tga", sprite[PT100_SPRITE] );
 	LoadTGASprite("200.tga", sprite[PT200_SPRITE] );
@@ -295,13 +305,55 @@ void CEGASprit::LoadSpecialSprites( std::vector<CSprite*> &sprite )
 	LoadTGASprite("arrowur.tga", sprite[ARROWUR_SPRITE] );
 	LoadTGASprite("arrowu.tga", sprite[ARROWU_SPRITE] );
 	LoadTGASprite("arrowd.tga", sprite[ARROWD_SPRITE] );
-	LoadTGASprite("cglogo.tga", sprite[CG_LOGO] );
+}
+
+void CEGASprit::DerivePlayerSprites( std::vector<CSprite> &sprites )
+{
+    // create the sprites for player 2, 3 and 4
+	size_t s;
+	for(size_t i=0;i<48;i++)
+	{
+		s = SECOND_PLAYER_BASEFRAME+i;
+		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
+		sprites.at(s).replaceSpriteColor( 13, 10 ,0 );
+		sprites.at(s).replaceSpriteColor( 5, 2 ,0 );
+		sprites.at(s).replaceSpriteColor( 9, 14 ,8 );
+		sprites.at(s).replaceSpriteColor( 1, 6 ,8 );
+		sprites.at(s).replaceSpriteColor( 12, 11 ,0 );
+		sprites.at(s).replaceSpriteColor( 4, 3 ,0 );
+		sprites.at(s).optimizeSurface();
+	}
+	for(size_t i=0;i<48;i++)
+	{
+		s = THIRD_PLAYER_BASEFRAME+i;
+		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
+		sprites.at(s).replaceSpriteColor( 13, 12, 0 ); // Shirt light
+		sprites.at(s).replaceSpriteColor( 5, 4, 0 ); // Shirt dark
+		sprites.at(s).replaceSpriteColor( 9, 10, 8 ); // Trousers light
+		sprites.at(s).replaceSpriteColor( 1, 2, 8 ); // Trousers dark
+		sprites.at(s).replaceSpriteColor( 12, 4, 16 ); // Shoes light
+		sprites.at(s).replaceSpriteColor( 4, 6, 16 ); // Shoes dark
+		sprites.at(s).optimizeSurface();
+	}
+	for(size_t i=0;i<48;i++)
+	{
+		s = FOURTH_PLAYER_BASEFRAME+i;
+		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
+		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
+		sprites.at(s).replaceSpriteColor( 13, 11, 0 ); // Shirt light
+		sprites.at(s).replaceSpriteColor( 5, 3, 0 ); // Shirt dark
+		sprites.at(s).replaceSpriteColor( 9, 11, 8 ); // Trousers light
+		sprites.at(s).replaceSpriteColor( 1, 9, 8 ); // Trousers dark
+		sprites.at(s).replaceSpriteColor( 12, 4, 16 ); // Shoes light
+		sprites.at(s).replaceSpriteColor( 4, 6, 16 ); // Shoes dark
+		sprites.at(s).optimizeSurface();
+	}
 }
 
 // This function has the task to make some items-tiles
 // be painted into yellow, so they look nice, when they are
 // collected
-void CEGASprit::DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite*> &sprites )
+void CEGASprit::DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite> &sprites )
 {
 	stTile *TileProperty = tilemap->mp_tiles;
 	// Yellow sprites a special effect when items are collected
@@ -339,35 +391,9 @@ void CEGASprit::DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite*> &
 	 }
 
     // TODO: Demo-Sprite must be added. This time loaded from one TGA File! The TGA is already there!
-
-	// TODO: Those sprite for second player, and so on should go into the CPlayer Class, because,
-	// first we don't often need them and second, we can only load, if the sprites are set up, which is not the case
-    // create BLANKSPRITE
-	//CSprite** sprite = &g_pGfxEngine->Sprite[0];
-    //sprite[s]->setSize(0, 0);
-
-
-    // create the sprites for player 2
-    /*s++;
-	playerbaseframes[1] = s;
-	for(i=0;i<48;i++)
-	{
-	 sprite[i]->copy( sprite[s], g_pGfxEngine->Palette.m_Palette );
-	 sprite[s]->replaceSpriteColor( 13, 10 ,0 );
-	 sprite[s]->replaceSpriteColor( 5, 2 ,0 );
-	 sprite[s]->replaceSpriteColor( 9, 14 ,8 );
-	 sprite[s]->replaceSpriteColor( 1, 6 ,8 );
-	 sprite[s]->replaceSpriteColor( 12, 11 ,0 );
-	 sprite[s]->replaceSpriteColor( 4, 3 ,0 );
-	 s++;
-	}
-
-    // create the sprites for player 3
-    // Unsupported for now...
-     */
 }
 
-void CEGASprit::CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprite* sprite )
+void CEGASprit::CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprite& sprite )
 {
 	SDL_Rect tile_rect;
 	
@@ -375,12 +401,12 @@ void CEGASprit::CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprit
 	tile_rect.y = 16*(tile/13);
 	tile_rect.w = tile_rect.h= 16;
 	
-	sprite->setSize(tile_rect.w, tile_rect.h);
-	sprite->createSurface( g_pVideoDriver->BlitSurface->flags,
+	sprite.setSize(tile_rect.w, tile_rect.h);
+	sprite.createSurface( g_pVideoDriver->BlitSurface->flags,
 						  g_pGfxEngine->Palette.m_Palette );
-	sprite->optimizeSurface();
+	sprite.optimizeSurface();
 	
-	SDL_Surface *src_sfc = sprite->getSDLSurface();
+	SDL_Surface *src_sfc = sprite.getSDLSurface();
 	
 	SDL_BlitSurface(tilemap->getSDLSurface(), &tile_rect, src_sfc, NULL);
 	
@@ -413,4 +439,6 @@ void CEGASprit::CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprit
 	if(SDL_MUSTLOCK(src_sfc)) SDL_UnlockSurface(src_sfc);
 }
 
-
+CEGASprit::~CEGASprit() {
+	if(EGASpriteModell) delete [] EGASpriteModell, EGASpriteModell = NULL;
+}

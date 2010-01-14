@@ -13,6 +13,8 @@
 #include <vector>
 #include "../graphics/CGfxEngine.h"
 
+#define MAX_PLAYERS 4
+
 // Reference to palette.c
 char pal_addcolor(unsigned char r, unsigned char g, unsigned char b);
 int pal_getcolor(unsigned char r, unsigned char g, unsigned char b);
@@ -22,7 +24,8 @@ public:
 	CEGASprit(int planesize,
 			  long spritestartloc,
 			  int numsprites,
-			  long spriteloc);
+			  long spriteloc,
+			  const std::string &gamepath);
 	virtual ~CEGASprit();
 
 	bool loadHead(char *data);
@@ -33,6 +36,7 @@ private:
 	int m_planesize;
 	long m_spritestartloc;
 	long m_spriteloc;
+	std::string m_gamepath;
 
 	struct st_sprite{
 		short width;
@@ -47,12 +51,13 @@ private:
 		long hv_offset; // Unused in Keen games. Used in later games such as Shadow Knights
 		// There are 3 copies of the same Elements in the file. There were used for performance
 		// in DOS but are ignored here.
-	}*Sprite;
+	}*EGASpriteModell;
 
-	char LoadTGASprite( const std::string &filename, CSprite *sprite );
-	void LoadSpecialSprites( std::vector<CSprite*> &sprite );
-	void DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite*> &sprites );
-	void CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprite* sprite );
+	char LoadTGASprite( const std::string &filename, CSprite &sprite );
+	void LoadSpecialSprites( std::vector<CSprite> &sprite );
+	void DerivePlayerSprites( std::vector<CSprite> &sprites );
+	void DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite> &sprites );
+	void CreateYellowSpriteofTile( CTilemap *tilemap, Uint16 tile, CSprite& sprite );
 };
 
 #endif /* CEGASPRIT_H_ */

@@ -8,7 +8,6 @@
 #include "../keen.h"
 #include "../StringUtils.h"
 #include "../CLogFile.h"
-#include "../include/gamedo.h"
 #include "../sdl/CTimer.h"
 #include "../sdl/CInput.h"
 #include "../sdl/CVideoDriver.h"
@@ -98,13 +97,13 @@ void CDialog::addObject(Uint8 type, Uint16 x, Uint16 y,const std::string text)
 void CDialog::setObjectText(Uint8 ID, const std::string &text)
 {
 	Uint8 type = m_dlgobject[ID]->m_type;
-		m_dlgobject[ID]->change( m_w-((m_dlgobject[ID]->m_x-m_x)/8)-5, text, type );
+		m_dlgobject[ID]->change( m_w-((m_dlgobject[ID]->m_x-m_x)/8)-4, text, type );
 }
 
 void CDialog::setObjectType(Uint8 ID, Uint8 type)
 {
 	std::string text = m_dlgobject[ID]->m_OptionText->m_text;
-		m_dlgobject[ID]->change( m_w-((m_dlgobject[ID]->m_x-m_x)/8)-5, text, type );
+		m_dlgobject[ID]->change( m_w-((m_dlgobject[ID]->m_x-m_x)/8)-4, text, type );
 }
 
 ///
@@ -221,7 +220,7 @@ void CDialog::processInput(int move)
 
 					if(!m_dlgobject.at(m_selected_ID)->m_selectable)
 					{
-						m_selected_ID--;
+						if(m_selected_ID-1 > 0) m_selected_ID--;
 						m_name = m_dlgobject.at(m_selected_ID)->m_OptionText->m_text;
 					}
 				}
@@ -241,17 +240,18 @@ void CDialog::draw()
 	// Render the empty Dialog frame if any
 	if(m_Frame) m_Frame->draw(m_DialogSurface);
 	
+	CFont &Font = g_pGfxEngine->getFont();
 	// Draw the to icon up or down accordingly
 	if( m_scroll>0 ) // Up Arrow
 	{
-		g_pGfxEngine->Font->drawCharacter(m_DialogSurface, 15,
+		Font.drawCharacter(m_DialogSurface, 15,
 										  m_Frame->m_x+m_Frame->m_w-16,
 										  m_Frame->m_y+8);
 	}
 	if( ( m_h-2 < (Uint8) m_dlgobject.size() )  &&
 	   ( m_scroll != m_dlgobject.size()-m_h+2 )) // Down Arrow
 	{
-		g_pGfxEngine->Font->drawCharacter(m_DialogSurface , 19,
+		Font.drawCharacter(m_DialogSurface , 19,
 										  m_Frame->m_x+m_Frame->m_w-16,
 										  m_Frame->m_y+m_Frame->m_h-16);
 	}
@@ -318,7 +318,7 @@ void CDialog::drawTwirl()
 		
 	}
 	
-	g_pGfxEngine->Font->drawTwirl( m_DialogSurface, m_twirl.frame,
+	g_pGfxEngine->getFont().drawTwirl( m_DialogSurface, m_twirl.frame,
 								  m_dlgobject[m_selected_ID]->m_x,
 								  m_twirl.posy );
 }

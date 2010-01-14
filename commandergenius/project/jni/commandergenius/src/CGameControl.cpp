@@ -12,15 +12,16 @@
 #include "fileio.h"
 #include "CLogFile.h"
 #include "sdl/sound/CSound.h"
+#include "graphics/effects/CColorMerge.h"
 #include "arguments.h"
 
-// TODO: I think the Options Structure is still missing here!
-// That need to be checked out!
+#define SAFE_DELETE(x)	if(x) { delete x; x = NULL; }
 
 CGameControl::CGameControl() :
 mp_GameLauncher(NULL),
 mp_PassiveMode(NULL),
-mp_PlayGame(NULL)
+mp_PlayGame(NULL),
+mp_GalaxyEGAGraphics(NULL)
 {
 	m_mode = GAMELAUNCHER;
 	m_Episode = 0;
@@ -29,7 +30,6 @@ mp_PlayGame(NULL)
 	m_endgame = false;
 
 	m_EGAGraphics = NULL;
-	m_Messages = NULL;
 	m_startLevel = 0;
 }
 
@@ -118,16 +118,22 @@ bool CGameControl::init(char mode)
 		mp_PlayGame = new CPlayGame(m_Episode, m_startLevel,
 									m_Numplayers, m_Difficulty,
 									m_DataDirectory, mp_option,
-									m_show_finale, m_SavedGame );
+									m_show_finale, m_SavedGame,
+									m_TeleporterTable);
 
 		m_show_finale = false; // just show it once!!
 
 		if(m_SavedGame.getCommand() == CSavedGame::LOAD)
 			ok &= mp_PlayGame->loadGameState();
 		else
+		{
+			// Create the special merge effect (Fadeout)
+			CColorMerge *pColorMergeFX = new CColorMerge(8);
+
 			ok &= mp_PlayGame->init();
 
-
+			g_pGfxEngine->pushEffectPtr(pColorMergeFX);
+		}
 		return ok;
 	}
 	return false;
@@ -138,6 +144,7 @@ bool CGameControl::loadResources(unsigned short Episode, const std::string& Data
 	CExeFile ExeFile(Episode, DataDirectory);
 	int version;
 	unsigned char *p_exedata;
+	unsigned char *p_exeheader;
 
 	m_Episode = Episode;
 	m_DataDirectory = DataDirectory;
@@ -151,46 +158,75 @@ bool CGameControl::loadResources(unsigned short Episode, const std::string& Data
     if(!ExeFile.readData()) return false;
 
     version = ExeFile.getEXEVersion();
-	p_exedata = ExeFile.getData();
+	p_exedata = ExeFile.getRawData();
+	p_exeheader = ExeFile.getHeaderData();
 
 	g_pLogFile->ftextOut("Commander Keen Episode %d (Version %d.%d) was detected.<br>", Episode, version/100, version%100);
-	if(version == 134) g_pLogFile->ftextOut("This version of the game is not supported!<br>");
+	if( Episode == 1 && version == 134) g_pLogFile->ftextOut("This version of the game is not supported!<br>");
 
-	if(ExeFile.getData() == NULL) {
+	if(p_exeheader == NULL) {
 		g_pLogFile->textOut(RED, "CGameControl::loadResources: Could not load data from the EXE File<br>");
 		return false;
 	}
 
 	// Patch the EXE-File-Data directly in the memory.
+	CPatcher Patcher(Episode, version, p_exedata, DataDirectory);
+	Patcher.patchMemory();
+
+	if( Episode == 1 || Episode == 2 || Episode == 3 ) // Vorticon resources
 	{
-		CPatcher Patcher(Episode, version, p_exedata, DataDirectory);
-		Patcher.patchMemory();
+		CTeleporter Teleporter(m_TeleporterTable, Episode);
+		Teleporter.createTeleporterTable(p_exedata);
+
+		if( (flags & LOADGFX) == LOADGFX )
+		{
+			// Decode the entire graphics for the game (EGALATCH, EGASPRIT, etc.)
+			if(m_EGAGraphics) delete m_EGAGraphics; // except for the first start of a game this always happens
+			m_EGAGraphics = new CEGAGraphics(Episode, DataDirectory); // Path is relative to the data dir
+			if(!m_EGAGraphics) return false;
+
+			m_EGAGraphics->loadData( version, p_exedata );
+		}
+
+		if( (flags & LOADSTR) == LOADSTR )
+		{
+			// load the strings.
+			CMessages Messages(p_exedata, Episode, version);
+			Messages.extractGlobalStrings();
+			//loadstrings();
+		}
+
+		if( (flags & LOADSND) == LOADSND )
+		{
+			// Load the sound data
+			g_pSound->loadSoundData(Episode, DataDirectory);
+		}
+		return true;
 	}
+	else if( Episode == 4 || Episode == 5 || Episode == 6 ) // Galaxy resources
+	{
+		// TODO: Lots of coding
+		if( (flags & LOADGFX) == LOADGFX )
+		{
+			// Decode the entire graphics for the game (Only EGAGRAPH.CK?)
+			SAFE_DELETE(mp_GalaxyEGAGraphics);
 
-    if( (flags & LOADGFX) == LOADGFX )
-    {
-        // Decode the entire graphics for the game (EGALATCH, EGASPRIT, etc.)
-        if(m_EGAGraphics) delete m_EGAGraphics; // except for the first start of a game this always happens
-        m_EGAGraphics = new CEGAGraphics(Episode, DataDirectory ); // Path is relative to the data dir
-		if(!m_EGAGraphics) return false;
+			mp_GalaxyEGAGraphics = new CEGAGraphicsGalaxy(Episode, DataDirectory, ExeFile); // Path is relative to the data dir
+			if(!mp_GalaxyEGAGraphics) return false;
 
-		m_EGAGraphics->loadData( version, p_exedata );
-    }
+			mp_GalaxyEGAGraphics->loadData();
+		}
 
-    if( (flags & LOADSTR) == LOADSTR )
-    {
-    	// load the strings. TODO: After that this one will replace loadstrings
-    	m_Messages = new CMessages(p_exedata, Episode, version);
-    	m_Messages->extractGlobalStrings();
-    	delete m_Messages;	m_Messages = NULL;
-        //loadstrings();
-    }
+		if( (flags & LOADSTR) == LOADSTR )
+		{
+			// load the strings.
+		}
 
-    if( (flags & LOADSND) == LOADSND )
-    {
-        // Load the sound data
-        g_pSound->loadSoundData(Episode, DataDirectory);
-    }
+		if( (flags & LOADSND) == LOADSND )
+		{
+			// Load the sound data
+		}
+	}
 	return true;
 }
 
@@ -272,8 +308,9 @@ void CGameControl::process()
 		// NOTE: Demo is not part of playgame anymore!!
 		if(mp_PassiveMode->getchooseGame())
 		{
-			cleanupAll();
+			// TODO: Some of game resources are still not cleaned up here!
 			init( GAMELAUNCHER );
+			return;
 		}
 
 		if(mp_PassiveMode->mustStartGame())
@@ -307,7 +344,10 @@ void CGameControl::process()
 			delete mp_PlayGame; mp_PlayGame = NULL;
 		}
 		else if( mp_PlayGame->getStartGame() )
-		{
+		{ // Start another new game
+			m_Numplayers = mp_PlayGame->getNumPlayers();
+			m_Difficulty = mp_PlayGame->getDifficulty();
+
 			delete mp_PlayGame; mp_PlayGame = NULL;
 			init(PLAYGAME);
 		}
@@ -369,6 +409,5 @@ void CGameControl::cleanupAll()
 CGameControl::~CGameControl() {
 	cleanupAll();
 	if(m_EGAGraphics) delete m_EGAGraphics;
-	if(m_Messages) delete m_Messages;
 }
 

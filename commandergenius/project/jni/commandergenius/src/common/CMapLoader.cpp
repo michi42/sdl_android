@@ -7,25 +7,28 @@
 
 #include "CMapLoader.h"
 #include "../keen.h"
+#include "../vorticon/ai/se.h"
 #include "../game.h"
 #include <iostream>
 #include <fstream>
 #include "../FindFile.h"
 #include "../CLogFile.h"
+#include "../fileio.h"
 #include "../include/fileio/rle.h"
 #include "../graphics/CGfxEngine.h"
 #include "../sdl/CVideoDriver.h"
 
-CMapLoader::CMapLoader(CMap* p_map, CPlayer *p_Player) :
-mp_Player(p_Player)
+CMapLoader::CMapLoader(CMap* p_map, std::vector<CPlayer> *p_PlayerVect) :
+mp_vec_Player(p_PlayerVect)
 {
 	mp_objvect = NULL;
 	mp_map = p_map;
 	m_checkpointset = false;
+	m_NessieAlreadySpawned = false;
 }
 
 // Loads the map into the memory
-bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
+bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path, bool loadNewMusic )
 {
 	int t;
 	Uint32 c=0;
@@ -35,10 +38,11 @@ bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
 	unsigned int curmapx=0, curmapy=0;
 	
 	std::string buffer = formatPathString(path);
-	std::string fname;
-	fname = buffer + "level";
-	if(level < 10) fname += "0";
-	fname += itoa(level) + ".ck" + itoa(episode);
+	std::string levelname;
+	levelname = "level";
+	if(level < 10) levelname += "0";
+	levelname += itoa(level) + ".ck" + itoa(episode);
+	std::string fname = buffer + levelname;
 	
 	std::ifstream MapFile; OpenGameFileR(MapFile, fname, std::ios::binary);
 	
@@ -46,6 +50,13 @@ bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
 	mp_map->m_gamepath = path;
 	mp_map->m_worldmap = (level == 80);
 	
+	// HQ Music. Load Music for a level if you have HQP
+	if(loadNewMusic)
+	{
+		g_pMusicPlayer->stop();
+		g_pMusicPlayer->LoadfromMusicTable(path, levelname);
+	}
+
 	if (!MapFile)
 	{
 		// only record this error message on build platforms that log errors
@@ -88,16 +99,16 @@ bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
 	mapsize = ((mp_map->m_width+32)*(mp_map->m_height+32));
 
 	if(mp_map->mp_data)	{
-		delete mp_map->mp_data;
+		delete [] mp_map->mp_data;
+		mp_map->mp_data = NULL;
 	}
 	mp_map->mp_data = new Uint16[mapsize];
 	
 	memset(mp_map->mp_data,0,mapsize*sizeof(Uint16));
 	
-	
 	if ( !mp_map->mp_data ) // Is this necessary ?
 	{
-		g_pLogFile->textOut(RED,"loadmap(): not enought memory to load map<br>");
+		g_pLogFile->textOut(RED,"loadmap(): not enough memory to load the map<br>");
 		return false;
 	}
 	
@@ -129,13 +140,17 @@ bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
 	
 	if(mp_objvect)
 	{
+	    if(!mp_objvect->empty())
+	    	mp_objvect->clear();
+	    mp_objvect->reserve(20000);
+
 		for( c=planesize+18 ; c<2*planesize+18 ; c++ )
 		{
 			t = filebuf[c];
 			
 			if (mp_map->m_worldmap) addWorldMapObject(t, curmapx, curmapy,  episode );
 			else addEnemyObject(t, curmapx, curmapy, episode, level);
-			
+
 			curmapx++;
 			if (curmapx >= mp_map->m_width)
 			{
@@ -153,8 +168,8 @@ bool CMapLoader::load( Uint8 episode, Uint8 level, const std::string& path )
     // Do some post calculations
     // Limit the scroll screens so the blocking (blue in EP1) tiles are3 never seen
     SDL_Rect gamerect = g_pVideoDriver->getGameResolution();
-    mp_map->m_maxscrollx = (mp_map->m_width<<4) - gamerect.w - 36;
-    mp_map->m_maxscrolly = (mp_map->m_height<<4) - gamerect.h - 36;
+    mp_map->m_maxscrollx = (mp_map->m_width<<4) - gamerect.w - 32;
+    mp_map->m_maxscrolly = (mp_map->m_height<<4) - gamerect.h - 32;
 
     // Set Scrollbuffer
     g_pVideoDriver->setScrollBuffer(&mp_map->m_scrollx_buf, &mp_map->m_scrolly_buf);
@@ -171,79 +186,99 @@ void CMapLoader::addTile( Uint16 t, Uint16 x, Uint16 y )
 	mp_map->setTile(x, y, t);
 }
 
-//bool NessieAlreadySpawned;
 void CMapLoader::addWorldMapObject(unsigned int t, Uint16 x, Uint16 y, int episode)
 {
 	// This function add sprites on the map. Most of the objects are invisible.
 	// TODO : Please convert this into ifs. There are more conditions than just switch.agree
+	std::vector<CPlayer>::iterator it_player;
 	switch(t)
 	{
 		case 0: break;       // blank
 		case 255:            // player start
 			if(!m_checkpointset)
 			{
-				mp_Player->goto_x = mp_Player[0].x = x << CSF;
-				mp_Player->goto_y = mp_Player[0].y = y << CSF;
-				mp_map->m_objectlayer[x][y] = 0;
+				it_player = mp_vec_Player->begin();
+				for(; it_player != mp_vec_Player->end() ; it_player++ )
+				{
+					it_player->exists = false;
+					it_player->spawn(x<<CSF, y<<CSF, OBJ_PLAYER, episode);
+				}
+			}
+			mp_map->m_objectlayer[x][y] = 0;
+
+			it_player = mp_vec_Player->begin();
+			for(; it_player != mp_vec_Player->end() ; it_player++ )
+			{
+				it_player->setupforLevelPlay();
+				it_player->solid = it_player->godmode;
+			}
+
+			break;
+		case NESSIE_PATH:          // spawn nessie at first occurance of her path
+			if (episode==3)
+			{
+				if (!m_NessieAlreadySpawned)
+				{
+					CObject nessie(mp_map);
+
+					nessie.setIndex(mp_objvect->size());
+					nessie.spawn(x<<CSF, y<<CSF, OBJ_NESSIE, 3);
+					nessie.onscreen = true;
+					nessie.solid = false;
+					m_NessieAlreadySpawned = true;
+					mp_objvect->push_back(nessie);
+				}
+				mp_map->m_objectlayer[x][y] = NESSIE_PATH;
 			}
 			break;
-			// TODO: Nessie is still disabled. Reenable it!
-			/*case NESSIE_PATH:          // spawn nessie at first occurance of her path
-			 if (episode==3)
-			 {
-			 if (!NessieAlreadySpawned)
-			 {
-			 o = spawn_object(curmapx<<4<<CSF, curmapy<<4<<CSF, OBJ_NESSIE);
-			 objects[o].hasbeenonscreen = 1;
-			 NessieAlreadySpawned = 1;
-			 NessieObjectHandle = o;
-			 }
-			 }
-			 break;*/
 		default:             // level marker
-			if ((t&0x7fff) <= 16 && mp_Player->mp_levels_completed[t&0x00ff] )
+			std::vector<CPlayer>::iterator it_player = mp_vec_Player->begin();
+			for(; it_player != mp_vec_Player->end() ; it_player++ )
 			{
-				mp_map->m_objectlayer[x][y] = t;
-				
-				// Change the level tile to a done sign
-				int newtile = g_pGfxEngine->Tilemap->mp_tiles[mp_map->at(x,y)].chgtile;
-				
-				// Consistency check! Some Mods have issues with that.
-				if(episode == 1 || episode == 2)
+				if ((t&0x7fff) <= 16 && it_player->mp_levels_completed[t&0x00ff] )
 				{
-					//Use default small tile
-					newtile = 77;
-					
-					// try to guess, if it is a 32x32 (4 16x16) Tile
-					if(mp_map->at(x-1,y-1) == (unsigned int) newtile &&
-					   mp_map->at(x,y-1) == (unsigned int) newtile  &&
-					   mp_map->at(x-1,y) == (unsigned int) newtile)
+					mp_map->m_objectlayer[x][y] = t;
+
+					// Change the level tile to a done sign
+					int newtile = g_pGfxEngine->Tilemap->mp_tiles[mp_map->at(x,y)].chgtile;
+
+					// Consistency check! Some Mods have issues with that.
+					if(episode == 1 || episode == 2)
 					{
-						mp_map->setTile(x-1, y-1, 78);
-						mp_map->setTile(x, y-1, 79);
-						mp_map->setTile(x-1, y, 80);
-						newtile = 81; // br. this one
+						//Use default small tile
+						newtile = 77;
+
+						// try to guess, if it is a 32x32 (4 16x16) Tile
+						if(mp_map->at(x-1,y-1) == (unsigned int) newtile &&
+								mp_map->at(x,y-1) == (unsigned int) newtile  &&
+								mp_map->at(x-1,y) == (unsigned int) newtile)
+						{
+							mp_map->setTile(x-1, y-1, 78);
+							mp_map->setTile(x, y-1, 79);
+							mp_map->setTile(x-1, y, 80);
+							newtile = 81; // br. this one
+						}
 					}
+					else if(episode == 3)
+					{
+						newtile = 56;
+						// try to guess, if it is a 32x32 (4 16x16) Tile
+						if(mp_map->at(x-1, y-1) == (unsigned int) newtile &&
+								mp_map->at(x, y-1) == (unsigned int) newtile  &&
+								mp_map->at(x-1, y) == (unsigned int) newtile)
+						{
+							mp_map->setTile(x-1, y-1, 52);
+							mp_map->setTile(x, y-1, 53);
+							mp_map->setTile(x-1, y, 54);
+							newtile = 55;
+						}
+					}
+					mp_map->setTile(x, y, newtile);
 				}
-				else if(episode == 3)
+				else
 				{
-					newtile = 56;
-					// try to guess, if it is a 32x32 (4 16x16) Tile
-					if(mp_map->at(x-1, y-1) == (unsigned int) newtile &&
-					   mp_map->at(x, y-1) == (unsigned int) newtile  &&
-					   mp_map->at(x-1, y) == (unsigned int) newtile)
-					{
-						mp_map->setTile(x-1, y-1, 52);
-						mp_map->setTile(x, y-1, 53);
-						mp_map->setTile(x-1, y, 54);
-						newtile = 55;
-					}
+					mp_map->m_objectlayer[x][y] = t;
 				}
-				mp_map->setTile(x, y, newtile);
-			}
-			else
-			{
-				mp_map->m_objectlayer[x][y] = t;
 			}
 			break;
 	}
@@ -264,15 +299,18 @@ void CMapLoader::addEnemyObject(unsigned int t, Uint16 x, Uint16 y, int episode,
 			if(y >= mp_map->m_height-2) // Edge bug. Keen would fall in some levels without this.
 				x = 4;
 
-			mp_Player[0].goto_x = mp_Player[0].x = (x<<CSF);
-			mp_Player[0].goto_y = mp_Player[0].y = (y<<CSF);
-			mp_Player[0].plastfalling = true;
-			mp_Player[0].pfalling = true;
-			mp_Player[0].pshowdir = RIGHT;
+			std::vector<CPlayer>::iterator it_player = mp_vec_Player->begin();
+			for(; it_player != mp_vec_Player->end() ; it_player++ )
+			{
+				it_player->exists = false;
+				it_player->spawn(x<<CSF, y<<CSF, OBJ_PLAYER, episode);
+				it_player->setupforLevelPlay();
+			}
 		}
 		else
 		{
-			CObject enemyobject;
+			CObject enemyobject(mp_map);
+			enemyobject.setIndex(mp_objvect->size());
 			
 			switch(t)
 			{
@@ -282,193 +320,173 @@ void CMapLoader::addEnemyObject(unsigned int t, Uint16 x, Uint16 y, int episode,
 					if (episode==1)
 					{
 						if ( TileProperty[mp_map->at(x ,y+1)].bleft ) x--;
-						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_YORP);
-						mp_objvect->push_back(enemyobject);
+						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_YORP, episode);
 						break;
 					}
-					else
+					else if(episode == 2)
 					{
 						// in ep2 level 16 there a vorticon embedded in the floor for
 						// some reason! that's what the if() is for--to fix it.
-						// TODO: Is this still needed?
-						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT);
-						mp_objvect->push_back(enemyobject);
-					 }
+						// I believe, that the rest of the vorticons are supposed to fall!
+						enemyobject.spawn(x<<CSF, (y-1)<<CSF, OBJ_VORT, episode);
+					}
+					else if(episode == 3)
+					{
+						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT, episode);
+					}
 					 break;
 				case 2:    // garg (ep1) baby vorticon (ep2&3)
 					 if (episode==1)
-					 {
-						 // those bastards. sometimes embedding garg's in the floor in
+					 {	 // those bastards. sometimes embedding garg's in the floor in
 						 // the original maps.
 						 if(TileProperty[mp_map->at(x+1, y+1)].bleft)
 						 {
 							 if (level==7)
-								 enemyobject.spawn(x<<CSF, (y-1)<<CSF, OBJ_GARG);
+								 enemyobject.spawn(x<<CSF, (y-1)<<CSF, OBJ_GARG, episode);
 							 else
-								 enemyobject.spawn((x-1)<<CSF, y<<CSF, OBJ_GARG);
+								 enemyobject.spawn((x-1)<<CSF, y<<CSF, OBJ_GARG, episode);
 						 }
 						 else
-							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_GARG);
+							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_GARG, episode);
 					 }
 					 else
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_BABY);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_BABY, episode);
 
-					 mp_objvect->push_back(enemyobject);
 						 break;
 				case 3:    // vorticon (ep1) Vorticon Commander (ep2)
 						 if (episode==1)
-							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT);
+							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT, episode);
 						 else if (episode==2)
-							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORTELITE);
+							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORTELITE, episode);
 						 else if (episode==3)
-							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_MOTHER);
-						 mp_objvect->push_back(enemyobject);
+							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_MOTHER, episode);
 						 break;
 				case 4:    // butler (ep1) OR scrub (ep2) OR meep (ep3)
 					 if (episode==1)
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_BUTLER);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_BUTLER, episode);
 					 else if (episode==2)
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SCRUB);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SCRUB, episode);
 					 else if (episode==3)
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_MEEP);
-					 mp_objvect->push_back(enemyobject);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_MEEP, episode);
 					 break;
-				case 5:    // tank robot (ep1&2) karate bear (ep3)
+				case 5:    // tank robot (ep1&2) vorticon ninja (ep3)
 					 if (episode==1)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_TANK);
-						 // set tank robot guarding bonus level to be active at startup
-						 if (level==13)
-							 enemyobject.hasbeenonscreen = true;
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_TANK, episode);
 					 }
 					 else if (episode==2)
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_TANKEP2);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_TANKEP2, episode);
 					 else if (episode==3)
 					 {
 						 if(TileProperty[mp_map->at(x,y+1)].bleft)
-							 enemyobject.spawn(x<<CSF, (y-1)<<CSF, OBJ_NINJA);
+							 enemyobject.spawn(x<<CSF, (y-1)<<CSF, OBJ_NINJA, episode);
 						 else
-							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_NINJA);
+							 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_NINJA, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 6:    // up-right-flying ice chunk (ep1) horiz platform (ep2)
 					 // foob (ep3)
 					 if (episode==1)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ICECANNON);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ICECANNON, episode);
 						 enemyobject.ai.icechunk.vector_x = 1;
 						 enemyobject.ai.icechunk.vector_y = -1;
 					 }
 					 else if (episode==2)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_PLATFORM);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_PLATFORM, episode);
 					 }
 					 else if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_FOOB);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_FOOB, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 7:   // spark (ep2) ball (ep3)
 					 if (episode==2)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF,OBJ_SPARK);
+						 enemyobject.spawn(x<<CSF, y<<CSF,OBJ_SPARK, episode);
 					 }
 					 else if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF,y<<CSF,OBJ_BALL);
-						 enemyobject.hasbeenonscreen = 1;
+						 enemyobject.spawn(x<<CSF,y<<CSF,OBJ_BALL, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 8:    // jack (ep3)
 					 if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF,OBJ_JACK);
-						 enemyobject.hasbeenonscreen = 1;
+						 enemyobject.spawn(x<<CSF, y<<CSF,OBJ_JACK, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 9:    // up-left-flying ice chunk (ep1) horiz platform (ep3)
 					 if (episode==1)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ICECANNON);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ICECANNON, episode);
 						 enemyobject.ai.icechunk.vector_x = -1;
 						 enemyobject.ai.icechunk.vector_y = -1;
 					 }
 					 else if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_PLATFORM);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_PLATFORM, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 10:   // rope holding the stone above the final vorticon (ep1)
 					 // vert platform (ep3)
 					 if (episode==1)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ROPE);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_ROPE, episode);
 					 }
 					 else if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<4<<CSF, OBJ_PLATVERT);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_PLATVERT, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 11:   // jumping vorticon (ep3)
 					 if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_VORT, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 12:   // sparks in mortimer's machine
-					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR);
+					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR, episode);
 					 enemyobject.ai.se.type = SE_MORTIMER_SPARK;
-					 enemyobject.hasbeenonscreen = 1;
-					 mp_objvect->push_back(enemyobject);
+					 enemyobject.solid = false;
 					 break;
 				case 13:   // mortimer's heart
-					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR);
+					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR, episode);
 					 enemyobject.ai.se.type = SE_MORTIMER_HEART;
-					 enemyobject.hasbeenonscreen = 1;
-					 mp_objvect->push_back(enemyobject);
+					 enemyobject.solid = false;
 					 break;
 				case 14:   // right-pointing raygun (ep3)
 					 if (episode==3)
 					 {
-						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_AUTORAY);
+						 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_AUTORAY, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 15:   // vertical raygun (ep3)
 					 if (episode==3)
 					 {
-						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_AUTORAY_V);
+						enemyobject.spawn(x<<CSF, y<<CSF, OBJ_AUTORAY_V, episode);
 					 }
-					 mp_objvect->push_back(enemyobject);
 					 break;
 				case 16:  // mortimer's arms
-					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR);
+					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR, episode);
 					 enemyobject.ai.se.type = SE_MORTIMER_ARM;
-					 enemyobject.hasbeenonscreen = 1;
-					 mp_objvect->push_back(enemyobject);
+					 enemyobject.solid = false;
 					 break;
 				case 17:  // mortimer's left leg
-					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR);
+					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR, episode);
 					 enemyobject.ai.se.type = SE_MORTIMER_LEG_LEFT;
-					 enemyobject.hasbeenonscreen = 1;
-					 mp_objvect->push_back(enemyobject);
+					 enemyobject.solid = false;
 					 break;
 				case 18:  // mortimer's right leg
-					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR);
+					 enemyobject.spawn(x<<CSF, y<<CSF, OBJ_SECTOREFFECTOR, episode);
 					 enemyobject.ai.se.type = SE_MORTIMER_LEG_RIGHT;
-					 enemyobject.hasbeenonscreen = 1;
-					 mp_objvect->push_back(enemyobject);
+					 enemyobject.solid = false;
 					 break;
 				default:
 					g_pLogFile->ftextOut(PURPLE,"unknown enemy type %d at (%d,%d)<br>", t, x, y); break;
 			}
+			mp_objvect->push_back(enemyobject);
 		}
 	}
 }

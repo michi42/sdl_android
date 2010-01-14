@@ -7,7 +7,6 @@
  */
 
 #include "CPassive.h"
-#include "../include/fileio/story.h"
 #include "../graphics/CGfxEngine.h"
 #include "../common/CMenu.h"
 #include "../common/CMapLoader.h"
@@ -45,7 +44,9 @@ bool CPassive::init(char mode)
 	if( m_mode == INTRO )
 	{
 		mp_IntroScreen = new CIntro();
-		mp_Map = new CMap( mp_Scrollsurface, mp_Tilemap);
+		mp_Map = new CMap;
+		mp_Map->setScrollSurface(mp_Scrollsurface);
+		mp_Map->setTileMap(mp_Tilemap);
 		CMapLoader MapLoader( mp_Map );
 		MapLoader.load( m_Episode, 90, m_DataDirectory);
 		mp_Map->gotoPos( 64+5*320, 16); // Coordinates of star sky
@@ -54,13 +55,15 @@ bool CPassive::init(char mode)
 	}
 	else if( m_mode == TITLE )
 	{
-		mp_TitleScreen = new CTitle(m_object);
-		mp_Map = new CMap( mp_Scrollsurface, mp_Tilemap);
+		mp_Map = new CMap;
+		mp_Map->setScrollSurface(mp_Scrollsurface);
+		mp_Map->setTileMap(mp_Tilemap);
 		CMapLoader MapLoader( mp_Map );
 		MapLoader.load( m_Episode, 90, m_DataDirectory);
 		SDL_Rect gamerect = g_pVideoDriver->getGameResolution();
 		mp_Map->gotoPos( 32, (gamerect.h<240) ? 32 : 0); // Coordinates of title screen
 		mp_Map->drawAll();
+		mp_TitleScreen = new CTitle(m_object, *mp_Map);
 		mp_TitleScreen->init(m_Episode);
 	}
 	else if( m_mode == DEMO )
@@ -90,20 +93,20 @@ void CPassive::process()
 
 		if (g_pInput->getPressedAnyKey())
 		{
-		// Close the "Press Any Key" box
-		g_pInput->flushAll();
-		if (m_mode != TITLE)
-		{
-			cleanup();
-			init(TITLE);
-		}
-		else
-		{
-			SAFE_DELETE(mp_PressAnyBox);
-			mp_Menu = new CMenu( PASSIVE, m_DataDirectory,
-								m_Episode, *mp_Map, m_SavedGame, mp_Option );
-			mp_Menu->init();
-		}
+			// Close the "Press Any Key" box
+			g_pInput->flushAll();
+			if (m_mode != TITLE)
+			{
+				cleanup();
+				init(TITLE);
+			}
+			else
+			{
+				SAFE_DELETE(mp_PressAnyBox);
+				mp_Menu = new CMenu( PASSIVE, m_DataDirectory,
+						m_Episode, *mp_Map, m_SavedGame, mp_Option );
+				mp_Menu->init();
+			}
 		}
 	}
 	else if( mp_Menu!=NULL ) // Close menu
@@ -120,13 +123,13 @@ void CPassive::process()
 			mp_Menu->videoRestarted();
 		}
 	}
-	
+
 	// Modes. We have three: Intro, Main-tile and Demos. We could add more.
 	if( m_mode == INTRO )
 	{
 		// Intro code goes here!
 		mp_IntroScreen->process();
-		
+
 		if( mp_IntroScreen->isFinished() )
 		{
 			// Shutdown mp_IntroScreen and show load Title Screen
@@ -137,7 +140,7 @@ void CPassive::process()
 	else if( m_mode == TITLE )
 	{
 		mp_TitleScreen->process();
-		
+
 		if( mp_Menu == NULL )
 		{
 			if( mp_TitleScreen->isFinished() )
@@ -146,6 +149,7 @@ void CPassive::process()
 				// and load Demo environment
 				cleanup();
 				init(DEMO);
+				return;
 			}
 		}
 	}
@@ -172,16 +176,16 @@ void CPassive::process()
 			(*i)->process();
 		}
 	}
-	
+
 	// If Menu is not open show "Press Any Key"
 	if(mp_PressAnyBox != NULL)
 		mp_PressAnyBox->process();
-	
+
 	// If Menu is open show it!
 	if( mp_Menu != NULL )
 	{
 		mp_Menu->process();
-		
+
 		// Let the menu control, if objects are to be seen or hidden
 		m_hideobjects = mp_Menu->m_hideobjects;
 
@@ -189,8 +193,7 @@ void CPassive::process()
 		{
 			m_NumPlayers = mp_Menu->getNumPlayers();
 			m_Difficulty = mp_Menu->getDifficulty();
-			delete mp_Menu;
-			mp_Menu = NULL;
+			SAFE_DELETE(mp_Menu);
 			cleanup();
 			m_mode = STARTGAME;
 		}

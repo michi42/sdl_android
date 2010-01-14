@@ -27,7 +27,7 @@ typedef struct stYorpData
 typedef struct stGargData
 {
 	unsigned char state;
-	int jumpheight;
+	int jumptime;
 	
 	unsigned char looktimes,lookframe;
 	unsigned char timer, keenonsameleveltimer;
@@ -47,7 +47,6 @@ typedef struct stVortData
 	
 	unsigned char timer,timer2;
 	unsigned int animtimer;
-	unsigned char palflashtimer, palflashamt;
 	unsigned char frame;
 	unsigned int dist_traveled;
 	signed int inertiay;
@@ -134,6 +133,8 @@ typedef struct stRayData
 	
 	unsigned char dontHitEnable;
 	unsigned int dontHit;         // index of an object type ray will not harm
+	unsigned int owner;			  // Object number, from which the ray has been shot.
+	bool shotbyplayer;
 	
 	// for soundwave
 	int animframe, animtimer;
@@ -170,8 +171,6 @@ typedef struct stTeleportData
 	
 	int baseframe;
 	int idleframe;
-	
-	char NoExitingTeleporter;
 	
 	char fadeamt;
 	char fadetimer;
@@ -225,7 +224,6 @@ typedef struct stSEData
 	unsigned char state;
 	unsigned int timer;
 	unsigned int platx, platy;
-	unsigned int bgtile;
 	unsigned int dir;
 	
 	int counter,destroytiles;
@@ -322,11 +320,11 @@ typedef struct stNessieData
 	char state;
 	char leftrightdir, updowndir;
 	unsigned int baseframe;
-	
+
 	unsigned int tiletrailX[NESSIETRAILLEN+1];
 	unsigned int tiletrailY[NESSIETRAILLEN+1];
 	int tiletrailhead;
-	
+
 	char animframe, animtimer;
 	unsigned int destx, desty;
 	
@@ -334,7 +332,7 @@ typedef struct stNessieData
 	unsigned int pausex, pausey;
 	
 	unsigned int mortimer_swim_amt;
-	unsigned int mounted[MAX_PLAYERS];
+	bool mounted[MAX_PLAYERS];
 } stNessieData;
 
 #endif /* ENEMYDATA_H_ */

@@ -17,7 +17,7 @@
 #include "../../sdl/CInput.h"
 #include "../../FindFile.h"
 
-CHelp::CHelp(std::string &DataDirectory, char &episode, std::string type)
+CHelp::CHelp(std::string &DataDirectory, char &episode, const std::string &type)
 {
 	std::string Text;
 	
@@ -41,6 +41,7 @@ CHelp::CHelp(std::string &DataDirectory, char &episode, std::string type)
 				Text.push_back(File.get());
 			
 			File.close();
+			Text.erase(Text.size()-1);
 		}
 		else
 		{
@@ -51,20 +52,20 @@ CHelp::CHelp(std::string &DataDirectory, char &episode, std::string type)
 			CExeFile *ExeFile = new CExeFile(episode, DataDirectory);
 			ExeFile->readData();
 			
-			if(!ExeFile->getData()) return;
+			if(!ExeFile->getHeaderData()) return;
 			
 			if(episode == 2)
 			{
-				startflag = 0x15DC0-512;
-				endflag = 0x1659F-512;
+				startflag = 0x15DC0;
+				endflag = 0x1659F;
 			}
 			else // Episode 3
 			{
-				startflag = 0x17BD0-512;
-				endflag = 0x1839F-512;
+				startflag = 0x17BD0;
+				endflag = 0x1839B;
 			}
 			
-			text_data = ExeFile->getData();
+			text_data = ExeFile->getRawData();
 			
 			for(unsigned long i=startflag ; i<endflag ; i++ )
 				Text.push_back(text_data[i]);
@@ -74,21 +75,31 @@ CHelp::CHelp(std::string &DataDirectory, char &episode, std::string type)
 	}
 	else
 	{
-		Text = "This is the Commander Genius help.";
+		std::string filename = "data/HELPTEXT.CKP";
+
+		std::ifstream File; OpenGameFileR(File, filename, std::ios::binary);
+
+		if(!File) {
+			Text = "The Text File \"data/HELPTEXT.CKP\" was not found!";
+			return;
+		}
+
+		while(!File.eof())
+			Text.push_back(File.get());
+
+		File.close();
+		Text.erase(Text.size()-1);
 	}
-	
+
 	// Create the Text ViewerBox and stores the text there!
-	mp_TextViewer = new CTextViewer(g_pVideoDriver->FGLayerSurface, 0, 0, 320, 160);
+	mp_TextViewer = new CTextViewer(g_pVideoDriver->FGLayerSurface, 0, 8, 320, 160);
 	mp_TextViewer->loadText(Text);
 }
 
 void CHelp::process() {
 	// NOTE: Animation is performed here too, because the story plane is drawn over the other
 	// map that is open. That is desired!
-	
-	// Blit the background
-	//g_pVideoDriver->blitScrollSurface();
-	
+
 	mp_TextViewer->process();
 	
 	if(mp_TextViewer->hasClosed())

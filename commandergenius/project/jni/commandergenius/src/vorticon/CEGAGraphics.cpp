@@ -18,6 +18,8 @@
 
 using namespace std;
 
+#define SAFE_SDL_FREE(x) if(x) { SDL_FreeSurface(x); x = NULL; }
+
 CEGAGraphics::CEGAGraphics(short episode, const std::string& path) {
 	m_episode = episode;
 	m_path = path;
@@ -46,13 +48,6 @@ CEGAGraphics::CEGAGraphics(short episode, const std::string& path) {
 	m_BigTileSurface = NULL;
 	m_TileSurface = NULL;
 	m_BitmapsSurface = NULL;
-}
-
-CEGAGraphics::~CEGAGraphics() {
-	if(m_Latch) delete m_Latch;
-	if(m_Sprit) delete m_Sprit;
-	m_Latch = NULL;
-	m_Sprit = NULL;
 }
 
 bool CEGAGraphics::loadData( int version, unsigned char *p_exedata )
@@ -124,7 +119,8 @@ bool CEGAGraphics::loadData( int version, unsigned char *p_exedata )
     m_Sprit = new CEGASprit(SpritePlaneSize,
 							SpriteStart,
 							NumSprites,
-							SpriteLocation);
+							SpriteLocation,
+							m_path);
     m_Sprit->loadHead(data);
 	
     if(m_path == "")
@@ -139,5 +135,17 @@ bool CEGAGraphics::loadData( int version, unsigned char *p_exedata )
 }
 
 int CEGAGraphics::getNumSprites() { return NumSprites; }
+
+CEGAGraphics::~CEGAGraphics() {
+	if(m_Latch) delete m_Latch;
+	if(m_Sprit) delete m_Sprit;
+	m_Latch = NULL;
+	m_Sprit = NULL;
+
+	SAFE_SDL_FREE(m_FontSurface);
+	SAFE_SDL_FREE(m_BigTileSurface);
+	SAFE_SDL_FREE(m_TileSurface);
+	SAFE_SDL_FREE(m_BitmapsSurface);
+}
 
 

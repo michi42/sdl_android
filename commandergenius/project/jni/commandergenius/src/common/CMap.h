@@ -14,7 +14,7 @@
 #include "../graphics/CTilemap.h"
 
 // animation rate of animated tiles
-#define ANIM_TILE_TIME        8
+#define ANIM_TILE_TIME        4
 #define MAX_ANIMTILES  200
 
 // for each entry in the animtileinuse array that is nonzero, that
@@ -29,9 +29,10 @@
 
 class CMap {
 public:
-	CMap( SDL_Surface *p_scrollsurface, CTilemap *p_Tilemap);
+	CMap();
 
-	void setSDLSurface( SDL_Surface *p_scrollsurface ) { mp_scrollsurface=p_scrollsurface; }
+	void setTileMap( CTilemap *pTilemap );
+	void setScrollSurface( SDL_Surface *surface );
 
 	bool gotoPos( int x, int y );
 	void resetScrolls();
@@ -56,6 +57,7 @@ public:
 
 	// Animation methods
 	void deAnimate(int x, int y);
+	void drawAnimatedTile(SDL_Surface *dst, Uint16 mx, Uint16 my, Uint16 tile);
 	void animateAllTiles();
 	void unregisterAnimtiles(int tile);
 	void registerAnimation(Uint32 x, Uint32 y, int c);

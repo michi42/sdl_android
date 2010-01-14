@@ -1,11 +1,10 @@
 #include "CObjectAI.h"
+#include "../../graphics/effects/CVibrate.h"
 #include "../spritedefines.h"
 #include "../../sdl/sound/CSound.h"
 #include "../../keen.h"
 #include "vort.h"
 #include "../../game.h"
-
-//#include "enemyai.h"
 
 // The rope holding the stone which kills the final Vorticon (ep1)
 
@@ -17,10 +16,6 @@ ROPE_IDLE, ROPE_DROPSTONE
 #define STONE_HEIGHT         2
 
 #define STONE_DROP_RATE      6
-
-void delete_object(int o);
-//void static rope_movestone(int o);
-void kill_all_intersecting_tile(int mpx, int mpy);
 
 void CObjectAI::rope_ai(CObject &object)
 {
@@ -40,16 +35,19 @@ void CObjectAI::rope_ai(CObject &object)
 	case ROPE_IDLE:
 		if (object.zapped)
 		{
+			int x, y;
 			// rope got broke! time to drop the stone
 			object.ai.rope.state = ROPE_DROPSTONE;
 			object.ai.rope.droptimer = 0;
 			// hide the rope
 			object.sprite = BLANKSPRITE;
 			// get upper left corner of the stone
-			object.ai.rope.stoneX = (object.x >> CSF) - 4;
-			object.ai.rope.stoneY = (object.y >> CSF) + 1;
+			x = object.getXPosition()>>CSF;
+			y = object.getYPosition()>>CSF;
+			object.ai.rope.stoneX = x - 4;
+			object.ai.rope.stoneY = y + 1;
 			// get color of background
-			object.ai.rope.bgtile = mp_Map->at(object.x>>CSF, object.y>>CSF);
+			object.ai.rope.bgtile = mp_Map->at(x, y);
 		}
 		break;
 
@@ -58,6 +56,11 @@ void CObjectAI::rope_ai(CObject &object)
 		{
 			object.ai.rope.droptimer = STONE_DROP_RATE;
 			rope_movestone(object);
+			g_pGfxEngine->pushEffectPtr(new CVibrate(400));
+
+			std::vector<CPlayer>::iterator it_player = m_Player.begin();
+			for(; it_player!=m_Player.end() ; it_player++)
+				it_player->blockedd=false;
 
 			// check if we've hit the ground yet
 			for(x=2;x<STONE_WIDTH-2;x++)
@@ -88,7 +91,7 @@ void CObjectAI::rope_movestone(CObject &object)
 	{
 		for(x=0;x<STONE_WIDTH;x++)
 		{
-			mp_Map->setTile(x+xa,y+ya,mp_Map->at(x+xa, y+ya-1), true);
+			mp_Map->setTile(x+xa,y+ya, mp_Map->at(x+xa, y+ya-1), true);
 
 			// if the stone hits any enemies, kill them
 			kill_all_intersecting_tile(x+xa, y+ya);

@@ -3,18 +3,28 @@
  *
  *  Created on: 22.10.2009
  *      Author: gerstrong
+ *
+ *  Spritetable: Indexes where CG must look into to get the proper sprite
  */
 
 #ifndef SPRITEDEFINES_H_
 #define SPRITEDEFINES_H_
 
-#define MAX_SPRITES  500
+#define MAX_SPRITES  1000
+
+#define SECOND_PLAYER_BASEFRAME 500
+#define THIRD_PLAYER_BASEFRAME 548
+#define FOURTH_PLAYER_BASEFRAME 596
 
 // Normals sprites
 #define ENEMYRAY           109
 #define ENEMYRAYEP2        123
 #define ENEMYRAYEP3        103
 #define RAY_VERT_EP3       104
+
+// horizontally-moving platform (ep2 & 3)
+#define OBJ_PLATFORM_DEFSPRITE_EP2   126
+#define OBJ_PLATFORM_DEFSPRITE_EP3   107
 
 #define OBJ_YORP_DEFSPRITE       50
 #define OBJ_GARG_DEFSPRITE       60
@@ -32,8 +42,6 @@
 #define OBJ_RAY_DEFSPRITE_EP2    122
 #define OBJ_RAY_DEFSPRITE_EP3    102
 
-#define OBJ_PLATFORM_DEFSPRITE_EP2   126
-#define OBJ_PLATFORM_DEFSPRITE_EP3   107
 #define OBJ_SCRUB_DEFSPRITE     102
 #define OBJ_TANKEP2_DEFSPRITE    112
 
@@ -51,7 +59,6 @@
 #define OBJ_BABY_DEFSPRITE_EP3   51
 
 #define OBJ_SPARK_DEFSPRITE_EP2		128
-
 
 // special sprites (they either weren't in the game originally,
 // or are used for internal engine stuff).

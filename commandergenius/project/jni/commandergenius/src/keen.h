@@ -13,8 +13,6 @@
 #include "funcdefs.h"
 #include "fileio/CTileLoader.h"
 
-#include "include/playeraction.h"
-
 #define CSF    9
 #define TILE_W			16
 #define TILE_H			16
@@ -161,12 +159,6 @@ TELEPORTING_SCROLL,
 TELEPORTING_IN
 };
 
-#define TELEPORT_BONUS_DESTX    ((((23085>>CSF)+2)<<CSF)-(8<<CSF))
-#define TELEPORT_BONUS_DESTY    (((12501>>CSF)+2)<<CSF)
-
-#define BONUSLEVEL_RESPAWN_X    31812
-#define BONUSLEVEL_RESPAWN_Y    18936
-
 enum MainMenuOptions{
 MAINMNU_1PLAYER,
 MAINMNU_2PLAYER,
@@ -191,27 +183,10 @@ BACK2MAINMENU,
 #define TILE_LIGHTSWITCH           271
 #define TILE_EXTENDING_PLATFORM    270
 
-// "Sector Effector" types
-enum sector_effector_type{
-	SE_EXTEND_PLATFORM,
-	SE_RETRACT_PLATFORM,
-	SE_ANKHSHIELD,
-	SE_MORTIMER_ARM,
-	SE_MORTIMER_LEG_LEFT,
-	SE_MORTIMER_LEG_RIGHT,
-	SE_MORTIMER_SPARK,
-	SE_MORTIMER_HEART,
-	SE_MORTIMER_ZAPSUP,
-	SE_MORTIMER_RANDOMZAPS
-};
-
-
 // special object markers
 #define NESSIE_PATH             8192
-#define NESSIE_PAUSE            8448
-#define NESSIE_MOUNTPOINT       8704
-#define GARG_STOPPOINT          1000
-#define BALL_NOPASSPOINT        1001
+#define NESSIE_WEED            	8448
+#define NESSIE_LAND		       	8704
 
 // values for demomode global variable
 #define DEMO_NODEMO             0
@@ -246,26 +221,5 @@ VIDEO_MODE_OPENGL,
 
 #include "include/declarations.h"
 #include "sdl/CSettings.h"
-
-struct stCloneKeenPlus
-{
-	//stCommand Command[MAX_COMMANDS];
-	SDL_Joystick *Joystick;
-	SDL_Event Event;
-	stResources Resources;
-	stGameData *GameData;
-	stControl Control;
-	//stOption Option[NUM_OPTIONS];
-	unsigned short numGames;
-	unsigned short shutdown;
-	
-	stCloneKeenPlus() : Joystick(NULL), GameData(NULL), numGames(0), shutdown(SHUTDOWN_NONE) {
-		memset(&Event, 0, sizeof(Event));
-	}
-};
-
-// keen.c
-void playgame_levelmanager(stCloneKeenPlus *pCKP);
-char play_demo(int demonum, stCloneKeenPlus *pCKP, int s);
 
 #endif

@@ -28,6 +28,9 @@ CGameLauncher::CGameLauncher() {
     m_ExeList.push_back( KEENEXE1 );
     m_ExeList.push_back( KEENEXE2 );
     m_ExeList.push_back( KEENEXE3 );
+    m_ExeList.push_back( KEENEXE4E );
+    m_ExeList.push_back( KEENEXE5E );
+    m_ExeList.push_back( KEENEXE6E );
 }
 
 CGameLauncher::~CGameLauncher() {
@@ -84,7 +87,10 @@ bool CGameLauncher::drawMenu()
     mp_LaunchMenu->setFrameTheme( DLG_THEME_OLDSCHOOL );
 	
     // Load the map for the background
-    mp_map = new CMap(g_pVideoDriver->getScrollSurface(), g_pGfxEngine->Tilemap);
+	mp_map = new CMap;
+	mp_map->setScrollSurface(g_pVideoDriver->getScrollSurface());
+	mp_map->setTileMap(g_pGfxEngine->Tilemap);
+
     CMapLoader MapLoader(mp_map);
 	
     if(!MapLoader.load(1, 90, m_Entries.at(m_ep1slot).path)) return false;
@@ -143,6 +149,7 @@ bool CGameLauncher::scanExecutables(const std::string& path)
         if (IsFileAvailable(file))
         {
             // Load the exe into memory
+        	// TODO: No good! Here must distinguish the versions
             executable = new CExeFile(i+1, path);
             executable->readData();
             // Process the exe for type

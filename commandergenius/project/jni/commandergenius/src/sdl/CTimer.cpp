@@ -48,7 +48,10 @@ CTimer::CTimer()
 	m_SyncCount = m_LoopCount = m_LogicCount = m_FrameCount = 0;
 
 	setFrameRate(DEFAULT_LPS, DEFAULT_FPS, DEFAULT_SYNC);
-    m_SyncStartTime = m_LoopStartTime = SDL_GetTicks();
+#ifdef WIZ
+    WIZ_ptimer_init();
+#endif
+    m_SyncStartTime = m_LoopStartTime = timerTicks();
 	g_pLogFile->textOut(GREEN, true, "Starting timer driver...\n");
 }
 
@@ -101,8 +104,8 @@ void CTimer::CalculateIntervals( void )
     looprate = looprate * (float)m_SyncRate;
     m_SyncDuration  = (int)looprate;
 
-    //printf( "LoopRate %d LogicRate %d FrameRate %d\n", m_LoopRate, m_LogicRate, m_FrameRate );
-    //printf( "LogicInt %d FrameInt %d LoopDur %d SyncDur %d\n", m_LogicInterval, m_FrameInterval, m_LoopDuration, m_SyncDuration );
+    printf( "LoopRate %d LogicRate %d FrameRate %d\n", m_LoopRate, m_LogicRate, m_FrameRate );
+    printf( "LogicInt %d FrameInt %d LoopDur %d SyncDur %d\n", m_LogicInterval, m_FrameInterval, m_LoopDuration, m_SyncDuration );
 }
 
 bool CTimer::TimeToLogic( void )
@@ -134,8 +137,8 @@ bool CTimer::TimeToRender( void )
 void CTimer::TimeToDelay( void )
 {
 	signed int delay;
-	ulong curtime = SDL_GetTicks();
 
+    unsigned int curtime = timerTicks();
     m_LoopCount++;
     m_SyncCount++;
 
@@ -143,25 +146,27 @@ void CTimer::TimeToDelay( void )
     if (m_SyncCount>=m_SyncRate)
     {
         // Delay for the remaining time
-        delay = m_SyncDuration - (int)(curtime - m_SyncStartTime);
+        delay = m_SyncDuration - (signed int)(curtime - m_SyncStartTime);
         if (delay>MSPERSEC)
             delay = MSPERSEC;
         if (delay>0) {
-            SDL_Delay(delay);
+            timerDelay(delay);
         }
+
         m_SyncCount = 0;
-        m_SyncStartTime = m_LoopStartTime = SDL_GetTicks();
+        m_SyncStartTime = m_LoopStartTime = timerTicks();
     }
     else
     {
         // Delay for the remaining time
-        delay = m_LoopDuration - (int)(curtime - m_LoopStartTime);
+        delay = m_LoopDuration - (signed int)(curtime - m_LoopStartTime);
         if (delay>MSPERSEC)
             delay = MSPERSEC;
         if (delay>0) {
-            SDL_Delay(delay);
+            timerDelay(delay);
         }
-        m_LoopStartTime = SDL_GetTicks();
+
+        m_LoopStartTime = timerTicks();
     }
 
 	// Display the loops/logic/frames per second
@@ -172,8 +177,6 @@ void CTimer::TimeToDelay( void )
 		m_FPS           = m_FrameCount;
 		m_LoopCount = m_LogicCount = m_FrameCount = 0;
 		m_FPSCountTime  = curtime;
-
-        printf( "LoopPS %d LPS %d FPS %d\n", m_LoopPS, m_LPS, m_FPS );
 	}
 }
 
@@ -182,14 +185,15 @@ void CTimer::TimeToDelay( void )
 //////////////////////////////////////////////////////////
 void CTimer::ResetSecondsTimer(void)
 {
-	m_LastSecTime = SDL_GetTicks();
+	m_LastSecTime = timerTicks();
 }
 
 // will return nonzero once per second
 bool CTimer::HasSecElapsed(void)
 {
-    ulong CurTime = SDL_GetTicks();
-	if (CurTime - m_LastSecTime >= MSPERSEC)
+    unsigned int CurTime = timerTicks();
+
+	if ((signed int)(CurTime - m_LastSecTime) >= MSPERSEC)
 	{
 		m_LastSecTime = CurTime;
 		return true;
@@ -199,8 +203,9 @@ bool CTimer::HasSecElapsed(void)
 
 bool CTimer::HasTimeElapsed(int msecs)
 {
-    ulong CurTime = SDL_GetTicks();
-	if (CurTime - m_LastSecTime >= msecs)
+    unsigned int CurTime = timerTicks();
+
+	if ((signed int)(CurTime - m_LastSecTime) >= msecs)
 	{
 		m_LastSecTime = CurTime;
 		return true;
@@ -208,7 +213,9 @@ bool CTimer::HasTimeElapsed(int msecs)
 	return false;
 }
 
-
 CTimer::~CTimer()
 {
+#ifdef WIZ
+    WIZ_ptimer_cleanup();
+#endif
 }

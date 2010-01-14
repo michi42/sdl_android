@@ -9,13 +9,9 @@
 #include "CPalette.h"
 #include <string.h>
 
-CFont::CFont() {
-	m_FontSurface = NULL;
-}
-
-CFont::~CFont() {
-	if(m_FontSurface) SDL_FreeSurface(m_FontSurface);
-}
+CFont::CFont() :
+m_FontSurface(NULL)
+{}
 
 bool CFont::CreateSurface(SDL_Color *Palette, Uint32 Flags)
 {
@@ -54,7 +50,10 @@ bool CFont::loadHiColourFont( const std::string& filename )
 		SDL_Surface *temp_surface = SDL_LoadBMP(filename.c_str());
 		if(temp_surface)
 		{
-			SDL_BlitSurface(temp_surface, NULL, m_FontSurface, NULL);
+			SDL_Surface *displaysurface = SDL_ConvertSurface(temp_surface, m_FontSurface->format, m_FontSurface->flags);
+			SDL_BlitSurface(displaysurface, NULL, m_FontSurface, NULL);
+			SDL_FreeSurface(displaysurface);
+			SDL_FreeSurface(temp_surface);
 			return true;
 		}
 	}
@@ -76,13 +75,27 @@ void CFont::generateGlowFonts()
 	// And this code makes the letter create blue edges
 	SDL_LockSurface(m_FontSurface);
 	
-	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + 136*128*m_FontSurface->format->BytesPerPixel;
+	int bpp = m_FontSurface->format->BytesPerPixel;
+	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + 136*128*bpp;
+
 	for(Uint8 y=0 ; y<8*6 ; y++)
 	{
 		for(Uint8 x=0 ; x<128 ; x++)
 		{
-			if(*pixel != 15) memset(pixel, 1,1);
-			pixel++;
+			Uint8 red, blue, green;
+			Uint32 color;
+
+			memcpy(&color, pixel,bpp);
+			SDL_GetRGB(color, m_FontSurface->format, &red, &green, &blue);
+			if(red < 0x0F && blue < 0x0F && green < 0x0F )
+			{
+				red = 0x00;
+				green = 0x00;
+				blue = 0xFF;
+				color = SDL_MapRGB(m_FontSurface->format, red, green, blue);
+				memcpy(pixel, &color, bpp);
+			}
+			pixel+=bpp;
 		}
 	}
 	SDL_UnlockSurface(m_FontSurface);
@@ -103,14 +116,35 @@ void CFont::generateInverseFonts()
 	// And this code makes the letter create blue edges
 	SDL_LockSurface(m_FontSurface);
 	
-	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + fmrect.y*128;
+	int bpp = m_FontSurface->format->BytesPerPixel;
+	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + fmrect.y*128*bpp;
+
 	for(Uint8 y=0 ; y<8*6 ; y++)
 	{
 		for(Uint8 x=0 ; x<128 ; x++)
 		{
-			if( *pixel == 15 ) memset(pixel,0,1);
-			else memset(pixel,11,1);
-			pixel++;
+			Uint8 red, blue, green;
+			Uint32 color;
+
+			memcpy(&color, pixel,bpp);
+			SDL_GetRGB(color, m_FontSurface->format, &red, &green, &blue);
+			if(red < 0x0F && blue < 0x0F && green < 0x0F )
+			{
+				red = 0x00;
+				green = 0x80;
+				blue = 0xFF;
+				color = SDL_MapRGB(m_FontSurface->format, red, green, blue);
+				memcpy(pixel, &color, bpp);
+			}
+			else
+			{
+				red = 0x00;
+				green = 0x00;
+				blue = 0x00;
+				color = SDL_MapRGB(m_FontSurface->format, red, green, blue);
+				memcpy(pixel, &color, bpp);
+			}
+			pixel+=bpp;
 		}
 	}
 	SDL_UnlockSurface(m_FontSurface);
@@ -130,15 +164,28 @@ void CFont::generateDisabledFonts()
 	
 	// And this code makes the letter create blue edges
 	SDL_LockSurface(m_FontSurface);
-	
-	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + fmrect.y*128;
+
+	int bpp = m_FontSurface->format->BytesPerPixel;
+	Uint8 *pixel = (Uint8*) m_FontSurface->pixels + fmrect.y*128*bpp;
+
 	for(Uint8 y=0 ; y<8*6 ; y++)
 	{
 		for(Uint8 x=0 ; x<128 ; x++)
 		{
-			if( *pixel == 15 ) memset(pixel,15,1);
-			else memset(pixel,7,1);
-			pixel++;
+			Uint8 red, blue, green;
+			Uint32 color = 0;
+
+			memcpy(&color, pixel,bpp);
+			SDL_GetRGB(color, m_FontSurface->format, &red, &green, &blue);
+			if(red < 0x0F && blue < 0x0F && green < 0x0F )
+			{
+				red = 0x80;
+				green = 0x80;
+				blue = 0x80;
+				color = SDL_MapRGB(m_FontSurface->format, red, green, blue);
+				memcpy(pixel, &color, bpp);
+			}
+			pixel+=bpp;
 		}
 	}
 	SDL_UnlockSurface(m_FontSurface);
@@ -252,3 +299,15 @@ void CFont::drawFont(SDL_Surface* dst, const std::string& text, Uint16 xoff, Uin
 	}
 	}
 }
+
+///
+// Destruction Routines
+///
+void CFont::DestroySurface(){
+	if(m_FontSurface) SDL_FreeSurface(m_FontSurface);
+	m_FontSurface = NULL;
+}
+
+CFont::~CFont() {
+}
+

@@ -16,6 +16,7 @@
 #include "../sdl/sound/CSound.h"
 #include "../graphics/CGfxEngine.h"
 #include "../vorticon/spritedefines.h"
+#include "../vorticon/ai/se.h"
 #include "../StringUtils.h"
 
 #define DOOR_YELLOW        2
@@ -26,10 +27,10 @@
 // let's have keen be able to pick up goodies
 void CPlayer::getgoodies()
 {
-	if( getGoodie((x+1)>>CSF, (y+1)>>CSF) ) return;     		// Upper-Left
-	else if(getGoodie((x+w-1)>>CSF, (y+1)>>CSF) ) return; 		// Upper-Right
-	else if(getGoodie(((x+1)>>CSF), ((y+h-1)>>CSF)) ) return; 	// Lower-Left
-	else if(getGoodie(((x+w-1)>>CSF), ((y+h-1)>>CSF)) ) return; // Lower-Right
+	if( getGoodie((getXLeftPos())>>CSF, (getYUpPos())>>CSF) ) return;     		// Upper-Left
+	else if(getGoodie((getXRightPos())>>CSF, (getYUpPos())>>CSF) ) return; 		// Upper-Right
+	else if(getGoodie(((getXLeftPos())>>CSF), ((getYDownPos())>>CSF)) ) return; 	// Lower-Left
+	else if(getGoodie(((getXRightPos())>>CSF), ((getYDownPos())>>CSF)) ) return; // Lower-Right
 }
 
 // have keen pick up the goodie at screen pixel position (px, py)
@@ -65,7 +66,7 @@ void CPlayer::procGoodie(int tile, int mpx, int mpy)
 	Uint8 behaviour = TileProperty[tile].behaviour;
 	if ( (behaviour > 5 && behaviour < 11) || (behaviour > 17 && behaviour < 22) )
 	{
-		if( x%2 == 1 )
+		if( getXPosition()%2 == 1 )
 			g_pSound->playStereofromCoord(SOUND_GET_BONUS, PLAY_NOW, 0);
 		else
 			g_pSound->playStereofromCoord(SOUND_GET_BONUS, PLAY_NOW, 320);
@@ -76,16 +77,16 @@ void CPlayer::procGoodie(int tile, int mpx, int mpy)
 	{
 			// keycards
 		case 18: give_keycard(DOOR_YELLOW);
-			riseBonus(PTCARDY_SPRITE, mpx-(2<<CSF), mpy-(2<<CSF));
+			riseBonus(PTCARDY_SPRITE, mpx, mpy);
 			break;
 		case 19: give_keycard(DOOR_RED);
-			riseBonus(PTCARDR_SPRITE, mpx-(2<<CSF), mpy-(2<<CSF));
+			riseBonus(PTCARDR_SPRITE, mpx, mpy);
 			break;
 		case 20: give_keycard(DOOR_GREEN);
-			riseBonus(PTCARDG_SPRITE, mpx-(2<<CSF), mpy-(2<<CSF));
+			riseBonus(PTCARDG_SPRITE, mpx, mpy);
 			break;
 		case 21: give_keycard(DOOR_BLUE);
-			riseBonus(PTCARDB_SPRITE, mpx-(2<<CSF), mpy-(2<<CSF));
+			riseBonus(PTCARDB_SPRITE, mpx, mpy);
 			break;
 			
 		case DOOR_YELLOW:
@@ -150,14 +151,10 @@ void CPlayer::procGoodie(int tile, int mpx, int mpy)
 			g_pSound->playSound(SOUND_GET_PART, PLAY_NOW);
 			break;
 			
+		case 24:
 			// in-level teleporter
 			// (in level13.ck1 that takes you to the bonus level)
-		case 24:
-			/*endlevel(0, &(pCKP->Control.levelcontrol) );
-			 pCKP->Control.levelcontrol.tobonuslevel = 1;
-			 pCKP->Control.levelcontrol.command = LVLC_CHANGE_LEVEL;
-			 pCKP->Control.levelcontrol.chglevelto = WM_MAP_NUM;*/
-			// TODO: Add code here!
+			level_done = LEVEL_TELEPORTER;
 			break;
 			
 		case 22: // Game info block (Youseein your mind or vorticon elder...)
@@ -166,34 +163,23 @@ void CPlayer::procGoodie(int tile, int mpx, int mpy)
 			
 		case 27:
 			giveAnkh();
-			riseBonus(ANKHUP_SPRITE, (mpx)-(2<<CSF), (mpy)-(2<<CSF));
+			riseBonus(ANKHUP_SPRITE, mpx, mpy );
 			break;
+
 		case 28:
 			inventory.charges++;
 			g_pSound->playSound(SOUND_GET_ITEM, PLAY_NOW);
-			riseBonus(SHOTUP_SPRITE, mpx-(2<<CSF), mpy-(2<<CSF));
+			riseBonus(SHOTUP_SPRITE, mpx, mpy );
 			break;
 			
 		case 17:
-			exitXpos = (mpx+2)<<4;
+			exitXpos = (mpx+2)<<TILE_S;
 			touchedExit();
 			break;
 			
 		case 23:break;	// these are switches. They cannot not be picked up!
 		case 25:break;  // Refer to JumpandPogo to check the activation code
 		case 26:break;
-			
-			// we fell off the bottom of the map
-			/*case TILE_FELLOFFMAP_EP1:
-			 if (!pdie)
-			 {
-			 g_pSound->playSound(SOUND_KEEN_FALL, PLAY_FORCE);
-			 ankhtime = 0;
-			 godmode = 0;
-			 pdie = PDIE_FELLOFFMAP;
-			 }
-			 break;*/
-			// TODO: This doesn't go here! Please search a new place
 		default:
 			break;
 	}
@@ -204,9 +190,8 @@ void CPlayer::riseBonus(int spr, int x, int y)
 {
 	 if (mp_option[OPT_RISEBONUS].value)
 	 {
-		 CObject GotPointsObj;
-		 printf("Creating %d \n", OBJ_GOTPOINTS);
-		 GotPointsObj.spawn(x<<CSF, y<<CSF, OBJ_GOTPOINTS);
+		 CObject GotPointsObj(mp_map);
+		 GotPointsObj.spawn(x<<CSF, y<<CSF, OBJ_GOTPOINTS, m_episode);
 		 GotPointsObj.sprite = spr;
 		 mp_object->push_back(GotPointsObj);
 	 }
@@ -242,6 +227,8 @@ void CPlayer::take_keycard(int doortile)
 
 bool CPlayer::showGameHint(int mpx, int mpy)
 {
+	if(hintused) return false;
+
 	if(m_episode == 1)
 	{
 		if(mp_map->at(mpx, mpy) >= 435 && mp_map->at(mpx, mpy) <= 438)
@@ -258,6 +245,12 @@ bool CPlayer::showGameHint(int mpx, int mpy)
 	}
 	else if(m_episode == 2)
 	{
+		// Keen 2 seems to have a bug with those tiles.
+		// On other parts on the map they can be triggered
+		// This small condition should fix that bug
+		int t = mp_map->at(mpx, mpy+1);
+		if(t != 429) return false;
+
 		// make the switch stop glowing
 		switch(m_level)
 		{
@@ -271,7 +264,10 @@ bool CPlayer::showGameHint(int mpx, int mpy)
 			return false;
 		}
 		mp_map->setTile(mpx, mpy+1, 432,true);
+		mp_map->unregisterAnimtiles(429);
+		mp_map->deAnimate(mpx<<STC, (mpy+1)<<STC);
 	}
+	hintused = true;
 	return true;
 }
 
@@ -353,9 +349,9 @@ stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 	 }
 	 
 	 // replace the door tiles with a door object, which will do the animation
-	 CObject doorobj;
+	 CObject doorobj(mp_map);
 
-	 doorobj.spawn(mpx<<CSF,(mpy-tilefix)<<CSF, OBJ_DOOR);
+	 doorobj.spawn(mpx<<CSF,(mpy-tilefix)<<CSF, OBJ_DOOR, m_episode);
 	 doorobj.sprite = doorsprite;
 
 	 mp_object->push_back(doorobj);
@@ -365,9 +361,12 @@ void CPlayer::giveAnkh()
 {
 	if (ankhtime == 0)
 	{
-		CObject Object;
+		int x, y;
+		CObject Object(mp_map);
 		Object.ai.se.type = SE_ANKHSHIELD;
-		ankhshieldobject = Object.spawn(x, y, OBJ_SECTOREFFECTOR);
+		x = getXPosition();
+		y = getYPosition();
+		ankhshieldobject = Object.spawn(x, y, OBJ_SECTOREFFECTOR, m_episode);
 		mp_object->push_back(Object);
 	}
 	

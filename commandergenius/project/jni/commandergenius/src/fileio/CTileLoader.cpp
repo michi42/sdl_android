@@ -12,7 +12,8 @@
 #include <cstdlib>
 #include <string>
 
-CTileLoader::CTileLoader(int episode, int version, unsigned char *data) {
+CTileLoader::CTileLoader(int episode, int version, unsigned char *data)
+{
 	m_episode = episode;
 	m_version = version;
 	m_data = data;
@@ -87,7 +88,6 @@ bool CTileLoader::load()
 	
 	for(j=0 ; j < m_numtiles ; j++)
 	{
-		mp_TileProperty[j].masktile = 0;
 		mp_TileProperty[j].animation = m_data[2*j];
 		mp_TileProperty[j].behaviour = m_data[2*(m_numtiles)+2*j];
 		mp_TileProperty[j].behaviour += m_data[2*(m_numtiles)+2*j+1] << 8;
@@ -99,6 +99,13 @@ bool CTileLoader::load()
 		mp_TileProperty[j].bdown += m_data[8*(m_numtiles)+2*j+1] << 8;
 		mp_TileProperty[j].bleft = m_data[10*(m_numtiles)+2*j];
 		mp_TileProperty[j].bleft += m_data[10*(m_numtiles)+2*j+1] << 8;
+
+		if( mp_TileProperty[j].bleft && mp_TileProperty[j].bright &&
+			mp_TileProperty[j].bup && mp_TileProperty[j].bdown	)
+		{ // This should solve some tile bugs in Episode 2
+			if(mp_TileProperty[j].behaviour == -2 or  mp_TileProperty[j].behaviour == -1)
+				mp_TileProperty[j].behaviour = 0;
+		}
 	}
 	
 	int value;
@@ -136,10 +143,12 @@ void CTileLoader::assignChangeTileAttribute()
 	// This special call is used for workarounds which are wrong in the tiles attributes file of CG.
 	// I hope those attributes can be read out of the exe-files in future.
 	// Everything to zero in order to avoid bugs in mods
+	// It also assigns the special background tile which is sometimes used in the game for changes
+	// to real backgrounds
 	for(int i=0 ; i<m_numtiles ; i++)
 		mp_TileProperty[i].chgtile = 0;
 	
-	// At any other case, than the special ones, the tile is always 143 for pickuppable items
+	// At any other case, except some special ones, the tile is always 143 for pickuppable items
 	// 17 is tile for an exit. Until row 19, this seems to be valid
 	for(int i=0 ; i<m_numtiles ; i++)
 		if(canbePickedup(i) || isaDoor(i) )
@@ -167,7 +176,7 @@ void CTileLoader::assignChangeTileAttribute()
 		case 3:
 		{
 			// Episode 3 is a special case, because the items are repeated 6 times
-			for(int i=0 ; i<=m_numtiles ; i++)
+			for(int i=0 ; i<m_numtiles ; i++)
 			{
 				// Only items!!
 				if(canbePickedup(i))

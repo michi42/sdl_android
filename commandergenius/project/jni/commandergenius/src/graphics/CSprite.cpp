@@ -9,6 +9,8 @@
 #include "CPalette.h"
 #include "../sdl/CVideoDriver.h"
 
+#define SAFE_DELETE(x) { if(x) SDL_FreeSurface(x); x = NULL; }
+
 CSprite::CSprite() :
 m_surface(NULL),
 m_masksurface(NULL)
@@ -16,11 +18,6 @@ m_masksurface(NULL)
 	m_xsize = m_ysize = 0;
 	m_bboxX1 = m_bboxY1 = 0;
 	m_bboxX2 = m_bboxY2 = 0;
-}
-
-CSprite::~CSprite() {
-	if(m_surface) SDL_FreeSurface(m_surface);
-	if(m_masksurface) SDL_FreeSurface(m_masksurface);
 }
 
 /////////////////////////////
@@ -43,7 +40,6 @@ bool CSprite::optimizeSurface()
 	if(m_surface)
 	{
 		SDL_Surface *temp_surface;
-		
 		temp_surface = SDL_DisplayFormatAlpha(m_surface);
 		SDL_FreeSurface(m_surface);
 		m_surface = temp_surface;
@@ -111,22 +107,24 @@ void CSprite::setBouncingBoxCoordinates( Uint16 bboxx1, Uint16 bboxy1, Uint16 bb
 	m_bboxY2 = bboxy2;
 }
 
-void CSprite::copy( CSprite *Destination, SDL_Color *Palette )
+void CSprite::copy( CSprite &Destination, SDL_Color *Palette )
 {
-	Destination->m_bboxX1 = m_bboxX1;
-	Destination->m_bboxY1 = m_bboxY1;
-	Destination->m_bboxX2 = m_bboxX2;
-	Destination->m_bboxY2 = m_bboxY2;
-	Destination->setSize(m_xsize, m_ysize);
+	Destination.m_bboxX1 = m_bboxX1;
+	Destination.m_bboxY1 = m_bboxY1;
+	Destination.m_bboxX2 = m_bboxX2;
+	Destination.m_bboxY2 = m_bboxY2;
+	Destination.setSize(m_xsize, m_ysize);
 	
-	Destination->createSurface( m_surface->flags, Palette );
+	Destination.createSurface( m_surface->flags, Palette );
 	
-	SDL_FillRect(Destination->getSDLSurface(), NULL, COLORKEY);
-	SDL_BlitSurface( m_surface, NULL, Destination->getSDLSurface(), NULL);
+	SDL_FillRect(Destination.getSDLSurface(), NULL, COLORKEY);
+	//SDL_BlitSurface( m_surface, NULL, Destination.getSDLSurface(), NULL);
 }
 
 // replaces all instances of color find in sprite s with
 // color replace, as long as the y is greater than miny
+// NOTE: This only can be used, when the surface is at 8-bit colours
+// and palettized. Don't use it, after it has been optimized
 void CSprite::replaceSpriteColor( Uint16 find, Uint16 replace, Uint16 miny )
 {
 	Uint16 x,y;
@@ -174,3 +172,14 @@ void CSprite::drawSprite( SDL_Surface *dst, Uint16 x, Uint16 y )
 	
 	SDL_BlitSurface( m_surface, &src_rect, dst, &dst_rect );
 }
+
+void CSprite::freeSurfaces()
+{
+	SAFE_DELETE(m_surface);
+	SAFE_DELETE(m_masksurface);
+}
+
+CSprite::~CSprite() {
+	freeSurfaces();
+}
+

@@ -20,7 +20,7 @@
 template <typename _dst, typename _src>
 bool isSameType(const _src& obj1, const _dst& obj2) {
 	if(sizeof(_dst) < sizeof(_src)) return isSameType(obj2, obj1);
-	return reinterpret_cast<const _dst*>(&obj1) != NULL;
+	return dynamic_cast<const _dst*>(&obj1) != NULL;
 }
 
 

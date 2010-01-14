@@ -17,15 +17,15 @@ enum{
 
 // when this probability is satisfied, there is 50% probability
 // of a look, 50% probability of a fire.
-#define TANK_LOOKFIRE_PROB    500
+//#define TANK_LOOKFIRE_PROB    500
 #define TANK_MINTRAVELDIST    200
 
-#define TANK_WALK_SPEED         16
-#define TANK_WALK_ANIM_TIME     3
+#define TANK_WALK_SPEED         32
+#define TANK_WALK_ANIM_TIME     2
 #define TANK_LOOK_ANIM_TIME     4
 #define TANK_LOOK_TOTALTIME     11
-#define TANK_PREPAREFIRE_TIME   11
-#define TANK_PREPAREFIRE_TIME_FAST   20
+#define TANK_PREPAREFIRE_TIME   44
+#define TANK_PREPAREFIRE_TIME_FAST   22
 
 // frames
 #define TANK_WALK_LEFT_FRAME        102
@@ -56,23 +56,19 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 		object.needinit = false;
 	}
 
-	CSprite &Sprite = *g_pGfxEngine->Sprite[object.sprite];
-	object.bboxX1 = Sprite.m_bboxX1;
-	object.bboxX2 = Sprite.m_bboxX2;
-	object.bboxY1 = Sprite.m_bboxY1;
-	object.bboxY2 = Sprite.m_bboxY2;
-
 	int height = object.bboxY2-object.bboxY1;
 	int width = object.bboxX2-object.bboxX1;
+	int x = object.getXPosition();
+	int y = object.getYPosition();
 
 	// stop keen from walking through our sprite
 	if (object.touchPlayer && !m_Player[object.touchedBy].pdie)
 	{
 		g_pSound->playStereofromCoord(SOUND_YORP_BUMP, PLAY_NORESTART, object.scrx);
 
-		if (!((m_Player[object.touchedBy].y) < (object.y - 300))) // give the m_Player a little jump-over room
+		if (!((m_Player[object.touchedBy].getYPosition()) < (y - 300))) // give the m_Player a little jump-over room
 		{
-			if (m_Player[object.touchedBy].x < object.x)
+			if (m_Player[object.touchedBy].getXPosition() < x)
 			{
 				m_Player[object.touchedBy].playpushed_x = -TANKPUSHAMOUNT;
 				m_Player[object.touchedBy].playpushed_decreasetimer = 0;
@@ -105,7 +101,6 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 			// did we go into this state for the purpose of turning and firing?
 			if (!object.ai.tank.fireafterlook)
 			{ // no
-
 				if ( !tank_CanMoveRight(object, width, height) || (rnd()&1) )
 					object.ai.tank.movedir = LEFT;
 				else if (!tank_CanMoveLeft(object, height) || !(rnd()&1) )
@@ -118,8 +113,8 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 				object.ai.tank.dist_traveled = 0;
 			}
 			else
-			{ // yes, face towards m_Player and fire.
-				if (m_Player[object.ai.tank.detectedPlayerIndex].x < object.x)
+			{ // yes, face towards m_Player.
+				if (m_Player[object.ai.tank.detectedPlayerIndex].getXPosition() < x)
 				{
 					object.ai.tank.movedir = LEFT;
 					object.sprite = TANK_WALK_LEFT_FRAME;
@@ -131,18 +126,18 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 				}
 				object.ai.tank.timer = 0;
 				object.ai.tank.fireafterlook = 0;
-				object.ai.tank.state = TANK_FIRE;
+				object.ai.tank.state = TANK_WALK;
 			}
 		} else object.ai.tank.timer++;
 		break;
 	case TANK_WALK:
 		// is keen on same level?
 		object.ai.tank.detectedPlayer = false;
-		for(int i=0;i<m_NumPlayers;i++)
+		for(int i=0 ; i<m_Player.size() ; i++)
 		{
-			if (m_Player[i].y >= object.y-(3<<CSF))
+			if (m_Player[i].getYPosition() >= y-(3<<CSF))
 			{
-				if ( m_Player[i].y+m_Player[i].h <= object.y+height+(3<<CSF) )
+				if ( m_Player[i].getYDownPos() <= y+height+(3<<CSF) )
 				{
 					object.ai.tank.detectedPlayer = true;
 					object.ai.tank.detectedPlayerIndex = i;
@@ -164,8 +159,8 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 					// facing keen?
 					object.ai.tank.timer = 0;
 					object.ai.tank.alreadyfiredcauseonsamelevel = 1;
-					if (((m_Player[object.ai.tank.detectedPlayerIndex].x < object.x) && object.ai.tank.movedir==LEFT) ||
-						((m_Player[object.ai.tank.detectedPlayerIndex].x > object.x) && object.ai.tank.movedir==RIGHT))
+					if (((m_Player[object.ai.tank.detectedPlayerIndex].getXPosition() < x) && object.ai.tank.movedir==LEFT) ||
+						((m_Player[object.ai.tank.detectedPlayerIndex].getXPosition() > x) && object.ai.tank.movedir==RIGHT))
 					{ // yes, we're facing him, we see him, we fire!
 						object.ai.tank.state = TANK_FIRE;
 						object.ai.tank.ponsameleveltime = 0;
@@ -187,22 +182,8 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 
 		if (object.ai.tank.dist_traveled > TANK_MINTRAVELDIST && object.onscreen)
 		{
-			if (rnd()%TANK_LOOKFIRE_PROB==(TANK_LOOKFIRE_PROB/2))
-			{  // we're either going to look or fire
-				object.ai.tank.timer = 0;
-
-				if (rnd()&1)
-				{ // look
-					object.ai.tank.timer = 0;
-					object.ai.tank.frame = 0;
-					object.ai.tank.state = TANK_LOOK;
-				}
-				else
-				{ // FIRE!
-					object.ai.tank.state = TANK_FIRE;
-				}
-				break;
-			}
+			object.ai.tank.timer = 0;
+			object.ai.tank.state = TANK_FIRE;
 		}
 
 		if (object.ai.tank.movedir==LEFT)
@@ -210,7 +191,7 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 			object.sprite = TANK_WALK_LEFT_FRAME + object.ai.tank.frame;
 			if( tank_CanMoveLeft(object, height) )
 			{
-				object.x -= TANK_WALK_SPEED;
+				object.moveLeft(TANK_WALK_SPEED);
 				object.ai.tank.dist_traveled++;
 			}
 			else
@@ -226,7 +207,7 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 			object.sprite = TANK_WALK_RIGHT_FRAME + object.ai.tank.frame;
 			if ( tank_CanMoveRight(object, width, height) )
 			{
-				object.x += TANK_WALK_SPEED;
+				object.moveRight(TANK_WALK_SPEED);
 				object.ai.tank.dist_traveled++;
 			}
 			else
@@ -249,25 +230,28 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 		if (object.ai.tank.timer > TANK_PREPAREFIRE_TIME ||
 				(object.ai.tank.timer > TANK_PREPAREFIRE_TIME_FAST && hardmode))
 		{
-			CObject newobject;
-			CSprite &RaySprite = *g_pGfxEngine->Sprite[OBJ_RAY_DEFSPRITE_EP1];
+			CObject newobject(mp_Map, m_Objvect.size());
 			if (object.onscreen) g_pSound->playStereofromCoord(SOUND_TANK_FIRE, PLAY_NOW, object.scrx);
 			if (object.ai.tank.movedir==RIGHT)
 			{
-				newobject.spawn(object.x+(RaySprite.getWidth()<<STC), object.y+(5<<STC), OBJ_RAY);
+				newobject.spawn(object.getXMidPos(), y+(4<<STC), OBJ_RAY, m_Episode, RIGHT);
 				newobject.ai.ray.direction = RIGHT;
 			}
 			else
 			{
-				newobject.spawn(object.x-(RaySprite.getWidth()<<STC), object.y+(5<<STC), OBJ_RAY);
+				newobject.spawn(object.getXMidPos(), y+(4<<STC), OBJ_RAY, m_Episode, LEFT);
 				newobject.ai.ray.direction = LEFT;
 			}
+			newobject.ai.ray.owner = object.m_index;
 			newobject.sprite = ENEMYRAY;
 			newobject.ai.ray.dontHitEnable = 0;
+			newobject.canbezapped = true;
 			m_Objvect.push_back(newobject);
 
-			object.ai.tank.state = TANK_WALK;
-
+			object.ai.tank.state = TANK_LOOK;
+			object.ai.tank.frame = 0;
+			object.ai.tank.timer = 0;
+			object.ai.tank.animtimer = 0;
 		} else object.ai.tank.timer++;
 		break;
 	}
@@ -275,14 +259,20 @@ void CObjectAI::tank_ai(CObject &object, bool hardmode)
 
 bool CObjectAI::tank_CanMoveLeft(CObject &object, int h)
 {
-	stTile &currentTile = g_pGfxEngine->Tilemap->mp_tiles[mp_Map->at((object.x-1)>>CSF, (object.y+h+512)>>CSF)];
+	int x = object.getXPosition();
+	int y = object.getYPosition();
+
+	stTile &currentTile = g_pGfxEngine->Tilemap->mp_tiles[mp_Map->at((x-1)>>CSF, (y+h+512)>>CSF)];
 	if (!object.blockedl && currentTile.bup) return true;
 	return false;
 }
 
 bool CObjectAI::tank_CanMoveRight(CObject &object, int w, int h)
 {
-	stTile &currentTile = g_pGfxEngine->Tilemap->mp_tiles[mp_Map->at((object.x+w+1)>>CSF, (object.y+h+512)>>CSF)];
+	int x = object.getXPosition();
+	int y = object.getYPosition();
+
+	stTile &currentTile = g_pGfxEngine->Tilemap->mp_tiles[mp_Map->at((x+w+1)>>CSF, (y+h+512)>>CSF)];
 	if (!object.blockedr && currentTile.bup) return true;
 	return false;
 }

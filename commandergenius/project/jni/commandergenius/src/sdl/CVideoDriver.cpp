@@ -45,16 +45,15 @@ CVideoDriver::CVideoDriver() {
 	// Default values
 
 	showfps=true;
-#ifdef WIZGP2X
+#if defined(WIZ) || defined(GP2X)
 	m_Resolution.width=320;
 	m_Resolution.height=240;
 	m_Resolution.depth=16;
 	Mode=0;
 	Fullscreen=true;
-	Filtermode=0;
+	m_ScaleXFilter=1;
 	Zoom=1;
-	FrameSkip=2;
-	m_targetfps = 50;	// Enable automatic frameskipping by default at 30
+	m_targetfps = 60;	// Enable automatic frameskipping by default at 30
 #else
 	m_Resolution.width=320;
 	m_Resolution.height=200;
@@ -63,7 +62,6 @@ CVideoDriver::CVideoDriver() {
 	Fullscreen=false;
 	m_ScaleXFilter=1;
 	Zoom=2;
-	FrameSkip=2;
 	m_targetfps = 60;
 #endif
 #ifdef USE_OPENGL
@@ -98,8 +96,7 @@ void CVideoDriver::initResolutionList()
 	st_resolution resolution;
 	char buf[256];
 	m_Resolutionlist.clear();
-	
-	#ifndef ANDROID // Awful trick to init SDL twice, my SDL port doesn't accept that!
+
 	std::ifstream ResolutionFile; OpenGameFileR(ResolutionFile, "resolutions.cfg");
 	if(!ResolutionFile)
 	{
@@ -143,13 +140,12 @@ void CVideoDriver::initResolutionList()
 			}
 		}
 		ResolutionFile.close();
-		
+
 		SDL_Quit();
 		// shutdown SDL, so the game can initialize it correctly
 		// It must happen, because this is a test for resolutions
 		// are checked against your graphics adapter
 	}
-	#endif
 
 	if(m_Resolutionlist.empty()) {
 		resolution.width = 320;
@@ -298,12 +294,10 @@ bool CVideoDriver::applyMode()
 	m_Resolution = *m_Resolution_pos;
 
 	// Setup mode depends on some systems.
-#ifdef WIZGP2X
-#ifdef GP2X
+#if defined(WIZ)
+    Mode = SDL_SWSURFACE;
+#elif defined(GP2X)
     Mode = SDL_DOUBLEBUF | SDL_HWSURFACE;
-#else
-	Mode = SDL_SWSURFACE;
-#endif
 #else
 	// Support for doublebuffering
 	Mode = SDL_DOUBLEBUF | SDL_HWPALETTE | SDL_HWSURFACE;
@@ -552,12 +546,16 @@ void CVideoDriver::blitScrollSurface() // This is only for tiles
 	drawConsoleMessages();
 }
 
-void CVideoDriver::update_screen(void)
+void CVideoDriver::collectSurfaces()
 {
 	SDL_BlitSurface(FGLayerSurface, NULL, BlitSurface, NULL);
 
 	if(FXSurface->format->alpha)
 		SDL_BlitSurface(FXSurface, NULL, BlitSurface, NULL);
+}
+
+void CVideoDriver::updateScreen()
+{
 
 #ifdef USE_OPENGL
 	if(m_opengl)
@@ -789,7 +787,7 @@ void CVideoDriver::drawConsoleMessages(void)
 	y = CONSOLE_MESSAGE_Y;
 	for(i=0;i<NumConsoleMessages;i++)
 	{
-		g_pGfxEngine->Font->drawFont( FGLayerSurface, cmsg[i].msg, CONSOLE_MESSAGE_X, y, 1);
+		g_pGfxEngine->getFont().drawFont( FGLayerSurface, cmsg[i].msg, CONSOLE_MESSAGE_X, y, 1);
 		y += CONSOLE_MESSAGE_SPACING;
 	}
 }

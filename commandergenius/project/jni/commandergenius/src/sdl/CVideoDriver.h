@@ -37,7 +37,6 @@ class CVideoDriver : public CSingleton<CVideoDriver>
 {
 public:
 	CVideoDriver();
-	virtual ~CVideoDriver();
 
 	bool applyMode();
 	SDL_Rect adaptGameResolution();
@@ -53,7 +52,8 @@ public:
 	void blitScrollSurface();
 	void setScrollBuffer(Sint16 *pbufx, Sint16 *pbufy);
 
-	void update_screen(void);
+	void collectSurfaces();
+	void updateScreen();
 	void noscale(char *dest, char *src, short bbp);
 	void scale2xnofilter(char *dest, char *src, short bbp);
 	void scale3xnofilter(char *dest, char *src, short bbp);
@@ -101,6 +101,8 @@ public:
 	void setAspectCorrection(bool value) { m_aspect_correction = value; }
 	bool getAspectCorrection(void) { return m_aspect_correction; }
 
+	virtual ~CVideoDriver();
+
 	SDL_Surface *BlitSurface;
 	SDL_Surface *FGLayerSurface;       	// Scroll buffer for Messages
 	SDL_Surface *ScrollSurface;       	// 512x512 scroll buffer
@@ -127,7 +129,6 @@ private:
 	bool Fullscreen;
 	short m_ScaleXFilter;
 	unsigned short Zoom;
-	unsigned short FrameSkip;
 	unsigned int m_targetfps;	// Used for automatic frame skipping
 	bool m_opengl;
 	int m_opengl_filter;
@@ -139,7 +140,6 @@ private:
 	SDL_Rect game_resolution_rect;	// Also called Screenspace. Yet very limited.
 
 	Sint16 *mp_sbufferx, *mp_sbuffery;
-
 
 	SDL_Surface *screen;                // the actual video memory/window
 };

@@ -5,11 +5,10 @@
  *      Author: gerstrong
  */
 
-#include "../../keen.h"
+//#include "../../keen.h"
 #include "COrderingInfo.h"
 #include "../../sdl/CInput.h"
 #include "../../CLogFile.h"
-#include "../../include/gamedo.h"
 #include "../../fileio/CExeFile.h"
 #include "../../graphics/CGfxEngine.h"
 #include "../../sdl/CVideoDriver.h"
@@ -18,11 +17,13 @@
 COrderingInfo::COrderingInfo(std::string &datadirectory, char &episode) {
 	CExeFile *Exefile = new CExeFile(episode, datadirectory);
 	mp_Scrollsurface = g_pVideoDriver->ScrollSurface;
-	mp_Map = new CMap(mp_Scrollsurface, g_pGfxEngine->Tilemap);
-	CMapLoader Maploader(mp_Map);
+	m_Map.setScrollSurface(mp_Scrollsurface);
+	m_Map.setTileMap(g_pGfxEngine->Tilemap);
+
+	CMapLoader Maploader(&m_Map);
 	
 	Maploader.load(episode, 90, datadirectory);
-	mp_Map->gotoPos( 22<<4, 32 );
+	m_Map.gotoPos( 22<<4, 32 );
 	
 	// load the exe file
 	Exefile->readData();
@@ -35,25 +36,47 @@ COrderingInfo::COrderingInfo(std::string &datadirectory, char &episode) {
 			m_starty = 4; // start of y-coordinate in textheights
 			m_numberoflines = 21; // numberof lines to print
 			if(Exefile->getEXEVersion() == 131)
-				offset = 0x1632C;
+				offset = 0x1652B-512;
+
+			// Change the ugly lower Tiles which are seen, when using 320x240 base resolution
+			for(int i=0; i<20 ; i++)
+			{
+				m_Map.changeTile(22+i, 15, 14*13);
+				m_Map.changeTile(22+i, 16, 14*13+3);
+			}
+
+			break;
+		case 2:
+			m_starty = 3; // start of y-coordinate in textheights
+			m_numberoflines = 19; // numberof lines to print
+			m_Map.gotoPos( 22<<4, 28 );
+			if(Exefile->getEXEVersion() == 131)
+				offset = 0x1ACD9-512;
+			break;
+		case 3:
+			m_starty = 4; // start of y-coordinate in textheights
+			m_numberoflines = 17; // numberof lines to print
+			if(Exefile->getEXEVersion() == 131)
+				offset = 0x1CDED-512;
 			break;
 	}
-	
+	m_Map.drawAll();
+
 	// Read the strings and save them the string array of the class
 	if(offset)
 	{
 		char *data;
-		data = (char*)Exefile->getData() + offset;
+		data = (char*)Exefile->getRawData() + offset;
 		std::string buf;
 		for(int i=0 ; i<m_numberoflines ; i++)
 		{
 			if(*data == '\0')
 			{
 				data++;
-				while(*data == ' ')
+				while(*data == '\0')
 					data++;
 			}
-			while(*data != '\n') // For the next line
+			while(*data != '\n' and *data != '\0') // For the next line
 			{
 				buf.push_back(*data);
 				data++;
@@ -63,48 +86,76 @@ COrderingInfo::COrderingInfo(std::string &datadirectory, char &episode) {
 			
 			buf.clear();
 		}
-		
-		// That part is a bit tricky. The Episodes have different X-Coordinates for evry text to center it properly
-		if(episode == 1)
-		{
-			m_Text_Coordinate.push_back( 8*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			m_Text_Coordinate.push_back( 8*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			m_Text_Coordinate.push_back( 11*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			m_Text_Coordinate.push_back( 10*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			for(int i=0; i<3 ; i++ )
-				m_Text_Coordinate.push_back( 8*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			for(int i=0; i<6 ; i++ )
-				m_Text_Coordinate.push_back( 1*8 );
-			m_Text_Coordinate.push_back( 23*8 );
-			for(int i=0; i<6 ; i++ )
-				m_Text_Coordinate.push_back( 0*8 ); // Coordinate-x to get the lines centered, like in the original game.
-			m_Text_Coordinate.push_back( 3*8 ); // Coordinate-x to get the lines centered, like in the original game.
-		}
-		
 	}
 	
 	delete Exefile;
-}
-
-COrderingInfo::~COrderingInfo() {
-	// TODO Auto-generated destructor stub
+	
+	//This just makes them all line up exactly like in the original games.
+	switch(episode)
+	{
+		case 1:
+			m_Textline[1] = " " + m_Textline[1];
+			m_Textline[2] = m_Textline[2] + "  ";
+			m_Textline[3] = m_Textline[3] + " ";
+			m_Textline[4] = " " + m_Textline[4];
+			m_Textline[5] = " " + m_Textline[5];
+			m_Textline[6] = " " + m_Textline[6];
+			m_Textline[8] = m_Textline[8] + "   ";
+			m_Textline[9] = m_Textline[9] + "   ";
+			m_Textline[10] = m_Textline[10] + "     ";
+			m_Textline[11] = m_Textline[11] + "           ";
+			m_Textline[13] = m_Textline[13] + "  ";
+			m_Textline[14] = m_Textline[14] + "  ";
+			m_Textline[15] = m_Textline[15] + "  ";
+			m_Textline[20] = m_Textline[20] + "   ";
+			break;
+		case 2:
+			m_Textline[2] = m_Textline[2] + "     ";
+			m_Textline[4] = m_Textline[4] + " ";
+			m_Textline[5] = m_Textline[5] + " ";
+			m_Textline[6] = m_Textline[6] + " ";
+			m_Textline[7] = m_Textline[7] + "   ";
+			m_Textline[8] = m_Textline[8] + "         ";
+			m_Textline[10] = m_Textline[10] + "           ";
+			m_Textline[11] = m_Textline[11] + "           ";
+			m_Textline[12] = m_Textline[12] + "           ";
+			m_Textline[13] = m_Textline[13] + "         ";
+			m_Textline[15] = m_Textline[15] + "  ";
+			m_Textline[16] = m_Textline[16] + "    ";
+			break;
+		case 3:
+			m_Textline[0] = m_Textline[0] + "     ";
+			m_Textline[1] = m_Textline[1] + "   ";
+			m_Textline[2] = m_Textline[2] + "       ";
+			m_Textline[4] = m_Textline[4] + "   ";
+			m_Textline[5] = m_Textline[5] + "   ";
+			m_Textline[6] = m_Textline[6] + "   ";
+			m_Textline[7] = m_Textline[7] + "     ";
+			m_Textline[8] = m_Textline[8] + "           ";
+			m_Textline[10] = m_Textline[10] + "    ";
+			m_Textline[11] = m_Textline[11] + "   ";
+			m_Textline[12] = m_Textline[12] + " ";
+			m_Textline[13] = m_Textline[13] + "      ";
+			m_Textline[16] = m_Textline[16] + "  ";
+			break;
+	}
 }
 
 void COrderingInfo::process()
 {	 
 	 if(!m_Textline.size())
 	 {
-	 g_pLogFile->textOut(RED,"Sorry, but the ordering information text could not be read. Returning to the main menu...<br>");
-	 return;
+		 g_pLogFile->textOut(RED,"Sorry, but the ordering information text could not be read. Returning to the main menu...<br>");
+		 m_destroy_me=true;
+		 return;
 	 }
-	 
-	 mp_Map->animateAllTiles();
 	 
 	 for(int i=0 ; i<m_numberoflines ; i++)
-	 {
-	 g_pGfxEngine->Font->drawFont(mp_Scrollsurface, m_Textline[i], m_Text_Coordinate[i]-160, 8*(i+4+m_starty), 1);
-	 }
+		 g_pGfxEngine->getFont().drawFont(g_pVideoDriver->FGLayerSurface, m_Textline[i], 160-m_Textline[i].size()*4, 8*(i+m_starty), 1);
 	
 	if(g_pInput->getPressedAnyKey())
 		m_destroy_me=true;
+}
+
+COrderingInfo::~COrderingInfo() {
 }

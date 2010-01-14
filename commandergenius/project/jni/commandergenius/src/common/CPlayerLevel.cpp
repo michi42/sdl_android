@@ -7,17 +7,19 @@
 
 #include "CPlayer.h"
 
+#include "../vorticon/ai/se.h"
 #include "../keen.h"
 #include "../sdl/sound/CSound.h"
 #include "../sdl/CInput.h"
 #include "../graphics/CGfxEngine.h"
+#include "../hqp/CMusic.h"
 #include "CPhysicsSettings.h"
 
 #define PDIEFRAME             22
 
 ////
 // Process the stuff of the player when playing in a normal level
-void CPlayer::processInLevel()
+void CPlayer::processInLevel(const bool &platextending)
 {
     StatusBox();
 	
@@ -44,17 +46,25 @@ void CPlayer::processInLevel()
 		
 		keencicle();
 		
-		if(!pjumping)
+		if(!pjumping && !pfrozentime)
 		{
 			Walking();
 			WalkingAnimation();
 		}
 		
-		playpushed();
+		if(!pfrozentime)
+			playpushed();
+
+		checkSolidDoors();
+
 		InertiaAndFriction_X();
 		
-		TogglePogo_and_Switches();
+		TogglePogo_and_Switches(platextending);
 		JumpAndPogo();
+
+		// Check collision with other objects
+		checkObjSolid();
+		if(!inhibitfall) Playerfalling();
 	}
 }
 
@@ -65,7 +75,7 @@ void CPlayer::touchedExit()
 	{
 		// don't allow player to walk through a door if he's standing
 		// on an object such as a platform or an enemy
-		if (psupportingobject)	return;
+		if (supportedbyobject)	return;
 		
 		// TODO: in episode 2 on level 13 aka Rome Tantalus Ray, if
 		// keen hasn't flipped the switch he shouldn't be able to
@@ -81,7 +91,7 @@ void CPlayer::touchedExit()
 		
 		ppogostick = false;
 		
-		//g_pMusicPlayer->stop();
+		g_pMusicPlayer->stop();
 		g_pSound->playSound(SOUND_LEVEL_DONE, PLAY_NOW);
 		level_done = LEVEL_DONE_WALK;
 	}
@@ -93,27 +103,32 @@ void CPlayer::walkbehindexitdoor()
 	
     // don't draw keen as he walks through the door (past exitXpos)
     // X pixel position of right side of player
-    xb = (x+w)>>(STC);
-    diff = (xb - exitXpos);        // dist between keen and door
+    xb = (getXRightPos())>>(STC);
+    diff = (xb - exitXpos) + 6;        // dist between keen and door
     if (diff >= 0)                             // past exitXpos?
     {
         width = (w>>(STC)) - diff;    // get new width of sprite
         if (width < 0) width = 0;               // don't set to negative
 		
         // set new width of all player walk frames
-        g_pGfxEngine->Sprite[playerbaseframe+0]->setWidth(width);
-        g_pGfxEngine->Sprite[playerbaseframe+1]->setWidth(width);
-		g_pGfxEngine->Sprite[playerbaseframe+2]->setWidth(width);
-		g_pGfxEngine->Sprite[playerbaseframe+3]->setWidth(width);
+        g_pGfxEngine->getSprite(playerbaseframe+0).setWidth(width);
+        g_pGfxEngine->getSprite(playerbaseframe+1).setWidth(width);
+		g_pGfxEngine->getSprite(playerbaseframe+2).setWidth(width);
+		g_pGfxEngine->getSprite(playerbaseframe+3).setWidth(width);
     }
 }
 
-void CPlayer::kill()
+void CPlayer::kill(bool force)
 {
-	if (godmode || g_pInput->getHoldedKey(KTAB)) return;
-	if (ankhtime) return;
+	if(!force) // force can happens for example, when player leaves the map to the most lower-side
+	{
+		if (godmode) return;
+		if (ankhtime) return;
+	}
 	if (!pdie)
 	{
+		godmode = false;
+		solid = false;
 		pdie = PDIE_DYING;
 		pdieframe = 0;
 		pdietimer = 0;
@@ -122,7 +137,6 @@ void CPlayer::kill()
 		pdie_xvect -= DIE_MAX_XVECT;
 		inventory.lives--;
 		SelectFrame();
-		//g_pMusicPlayer->stop();
 		g_pSound->playSound(SOUND_KEEN_DIE, PLAY_NOW);
 	}
 }
@@ -154,13 +168,13 @@ void CPlayer::dieanim() // Bad word for that. It's the entire die code
 	// is it time to start flying off the screen?
 	if (!pdietillfly)
 	{  // time to fly off the screen
-		if (((y>>(CSF-4))+96 > mp_map->m_scrolly) && (y>(16<<(CSF-4))))
+		if (((getYPosition()>>(CSF-4))+96 > mp_map->m_scrolly) && (getYPosition()>(16<<(CSF-4))))
 		{  // player has not reached top of screen
 			// make player fly up
-			goto_y += PDIE_RISE_SPEED;
-			if (x > (4<<CSF))
+			moveUp(-PDIE_RISE_SPEED);
+			if (getXPosition() > (4<<CSF))
 			{
-				goto_x += pdie_xvect;
+				moveXDir(pdie_xvect);
 			}
 		}
 		else
@@ -210,7 +224,7 @@ void CPlayer::setDir()
 	if (pfrozentime) return;
 	// can't change direction on ice,
 	// UNLESS we're stuck up against a wall
-	if (psliding)
+	if (psliding && pjumping < PJUMPED)
 	{
 		bool stuck = false;
 		if (pshowdir == LEFT && blockedl) stuck = true;
@@ -220,7 +234,7 @@ void CPlayer::setDir()
 			// jumped off an ice block into a wall?
 			if (pjumping || pfalling)
 			{
-				psliding = 0;
+				psliding = false;
 			}
 		}
 		else
@@ -248,7 +262,7 @@ void CPlayer::playpushed()
     if (mp_option[OPT_CHEATS].value && g_pInput->getHoldedKey(KTAB)) return;
 	
     // if we're being pushed...
-    if (playpushed_x)
+    if (playpushed_x != 0)
     {
 		// do friction on push force...
 		if (playpushed_decreasetimer>PLAYPUSH_DECREASERATE)
@@ -272,50 +286,87 @@ void CPlayer::playpushed()
 		if (playpushed_x > 0 && blockedr) playpushed_x = 0;
 		if (playpushed_x < 0 && blockedl) playpushed_x = 0;
 
-		pinertia_x = 0;
+		if( (!(playcontrol[PA_X]>0) && playpushed_x > 0) or
+			(!(playcontrol[PA_X]<0) && playpushed_x < 0) )
+			xinertia = 0;
     }
 }
 
 // allow Keen to toggle the pogo stick and hit switches
-void CPlayer::TogglePogo_and_Switches()
+void CPlayer::TogglePogo_and_Switches(const bool &platextending)
 {
 	int i;
-	int mx, my, t;
-	CSprite *standsprite = g_pGfxEngine->Sprite[PSTANDFRAME];
+	int mx, my;
+	Uint16 t;
 	
 	// detect if KPOGO key only pressed
 	if ( playcontrol[PA_POGO] && !pfrozentime && !lastpogo )
 	{
 		// if we are standing near a switch hit the switch instead
-		mx = (x>>CSF)+(standsprite->getWidth()/2);
+		mx = (getXMidPos())>>CSF;
 		
-		for(i=standsprite->getHeight()-1;i>=0;i-=8)
+		for(i=h;i>=0;i-=8)
 		{
-			my = (y>>CSF)+i;
+			my = (getYPosition()+i)>>CSF;
 			
 			t = mp_map->at(mx, my);
 			
 			// check for extending-platform switch
 			if (t==TILE_SWITCH_UP || t==TILE_SWITCH_DOWN )
 			{
-				//ExtendingPlatformSwitch(mx, my, p_levelcontrol);
-				// TODO: ADD CODE here, but this must happen outside this function
-				if (!ppogostick) return;
+				// Flip the switch!
+				g_pSound->playStereofromCoord(SOUND_SWITCH_TOGGLE, PLAY_NOW, getXPosition()>>STC);
+				if ( mp_map->at(mx, my) == TILE_SWITCH_DOWN )
+					mp_map->changeTile(mx, my, TILE_SWITCH_UP);
+				else
+					mp_map->changeTile(mx, my, TILE_SWITCH_DOWN);
+
+				// figure out where the platform is supposed to extend at
+				// (this is coded in the object layer...
+				// high byte is the Y offset and the low byte is the X offset,
+				// and it's relative to the position of the switch.)
+				Uint16 bridge = mp_map->getObjectat(mx, my);
+
+				if (bridge==0) // Uh Oh! This means you have enabled a tantalus ray of the ship
+				{
+					m_Level_Trigger = LVLTRIG_TANTALUS_RAY;
+				}
+				else
+				{
+					if(!platextending)
+					{
+						m_Level_Trigger = LVLTRIG_BRIDGE;
+						char pxoff = (bridge & 0x00ff);
+						char pyoff = (bridge & 0xff00) >> 8;
+						int platx = mx + pxoff;
+						int platy = my + pyoff;
+
+						// spawn a "sector effector" to extend/retract the platform
+						CObject platobject(mp_map);
+						platobject.spawn(mx<<CSF,my<<CSF,OBJ_SECTOREFFECTOR, m_episode);
+						platobject.ai.se.type = SE_EXTEND_PLATFORM;
+						platobject.ai.se.platx = platx;
+						platobject.ai.se.platy = platy;
+						mp_object->push_back(platobject);
+					}
+				}
+
+				if (ppogostick) ppogostick = false;
+				break;
 			}
 			else if (t==TILE_LIGHTSWITCH)
 			{ // lightswitch
-				/*p_levelcontrol->dark ^= 1;
-				 g_pGfxEngine->Palette.setdark(p_levelcontrol->dark);
-				 g_pSound->playStereofromCoord(SOUND_SWITCH_TOGGLE, PLAY_NOW, objects[useObject].scrx);
-				 if (!ppogostick) return;*/
-				// TODO: ADD CODE here, but this must happen outside this function
+				m_Level_Trigger = LVLTRIG_LIGHT;
+				g_pSound->playStereofromCoord(SOUND_SWITCH_TOGGLE, PLAY_NOW, getXPosition()>>CSF);
+				break;
 			}
 		}
 		
 		// toggle pogo stick
-		if (inventory.HasPogo)
+		if (inventory.HasPogo && m_Level_Trigger == LVLTRIG_NONE)
 		{
 			ppogostick ^= 1;
+			pogofirsttime = true;
 		}
 		lastpogo = true;
 	}
@@ -329,9 +380,9 @@ void CPlayer::JumpAndPogo()
 	if (!pjumping && !pfalling && !pfiring)
 	{
 		// give em the chance to jump
-		if (playcontrol[PA_JUMP] && !ppogostick && !pfrozentime)
+		if (playcontrol[PA_JUMP] && !ppogostick && !pfrozentime && !playpushed_x)
 		{
-			pinertia_x = 0;
+			xinertia = 0;
 			pjumping = PPREPAREJUMP;
 			pjumpframe = PPREPAREJUMPFRAME;
 			pjumpanimtimer = 0;
@@ -344,7 +395,7 @@ void CPlayer::JumpAndPogo()
 			pwalking = false;
 		}
 	}
-	
+
     switch(pjumping)
     {
 		case PPREPAREPOGO:
@@ -359,40 +410,41 @@ void CPlayer::JumpAndPogo()
 					pjumping = PPOGOING;
 
 					// continously bounce while pogo stick is out
-					g_pSound->playStereofromCoord(SOUND_KEEN_JUMP, PLAY_NOW, mp_object->at(m_player_number).scrx);
+					g_pSound->playStereofromCoord(SOUND_KEEN_JUMP, PLAY_NOW, scrx);
 
-					/*// jump high if JUMP key down, else bounce low
+					// jump high if JUMP key down, else bounce low
 					if (playcontrol[PA_JUMP])
 					{
 						if (!mp_option[OPT_SUPERPOGO].value)
 						{  // normal high pogo jump
 							if(playcontrol[PA_JUMP] > 12)
-								pjumpupspeed = ((PPOGOUP_SPEED-PJUMPUP_SPEED)*playcontrol[PA_JUMP]) / 50 + PJUMPUP_SPEED;
-							else
-								pjumpupspeed = (PPOGOUP_SPEED*11) / 10; // Impossible Pogo Trick
-							pjumptime = PJUMP_NORMALTIME_POGO_LONG;
-							pjumpupspeed_decrease = PJUMP_UPDECREASERATE_POGO_LONG;
+							{
+								if(!pogofirsttime)
+								{
+									int jump = mp_PhysicsSettings->player.maxjumpspeed;
+									int pogo = mp_PhysicsSettings->player.maxpogospeed;
+									pjumpupspeed = (pogo-jump)*playcontrol[PA_JUMP] / 50 + jump;
+									pogofirsttime = false;
+								}
+								else
+									pjumpupspeed = mp_PhysicsSettings->player.maxpogospeed;
+							}
+							else if(playcontrol[PA_JUMP] && pogofirsttime)
+							{
+								pjumpupspeed = mp_PhysicsSettings->player.maxpogospeed;
+							}
 						}
 						else
 						{
 							pjumpupspeed = PPOGOUP_SPEED_SUPER;
-							pjumptime = PJUMP_NORMALTIME_POGO_LONG_SUPER;
-							pjumpupspeed_decrease = PJUMP_UPDECREASERATE_POGO_LONG_SUPER;
 						}
 					}
-					else
-					{
-						if(ppogostick)
-						{
-							pjumpupspeed = PJUMPUP_SPEED;
-							pjumptime = PJUMP_NORMALTIME_POGO_SHORT;
-							pjumpupspeed_decrease = PJUMP_UPDECREASERATE_POGO_SHORT;
-						}
-					}
+					else pogofirsttime = false;
 					pjumpframe = PJUMP_PREPARE_LAST_FRAME;
-					pjumping = PPOGOING;*/
+					pjumping = PPOGOING;
 				} else pjumpanimtimer++;
 			}
+			else pjumping = PNOJUMP;
 			break;
 		case PPREPAREJUMP:
 			if (pjumpanimtimer > PJUMP_PREPARE_ANIM_RATE)
@@ -415,7 +467,7 @@ void CPlayer::JumpAndPogo()
 					}
 					
 					pjumpframe = PJUMP_PREPARE_LAST_FRAME;
-					g_pSound->playStereofromCoord(SOUND_KEEN_JUMP, PLAY_NOW, mp_object->at(m_player_number).scrx);
+					g_pSound->playStereofromCoord(SOUND_KEEN_JUMP, PLAY_NOW, scrx);
 					pjumping = PJUMPUP;
 					
 					// make so if we're jumping left or right
@@ -423,43 +475,44 @@ void CPlayer::JumpAndPogo()
 					pwalking = 1;
 					pwalkanimtimer = 0;
 					pwalkframe = 1;
-					if ( g_pGfxEngine->Tilemap->mp_tiles[psupportingtile].behaviour == 3)
+					if ( psliding )
 					{ // on ice, always jump direction facing
-						if (pshowdir==LEFT)
-						{  pdir=LEFT; }
-						else
-						{  pdir=RIGHT; }
+						if (pshowdir==LEFT) pdir=LEFT;
+						else pdir=RIGHT;
 					}
 					else
 						pjumpdir = UP;
 					
 					pwalkincreasetimer = 0;
-					if(playcontrol[PA_X] < 0)	pinertia_x = -mp_PhysicsSettings->player.jumpdecrease_x;
-					if(playcontrol[PA_X] > 0)	pinertia_x = mp_PhysicsSettings->player.jumpdecrease_x;
+					if(playcontrol[PA_X] < 0)	xinertia = -mp_PhysicsSettings->player.jumpdecrease_x;
+					if(playcontrol[PA_X] > 0)	xinertia = mp_PhysicsSettings->player.jumpdecrease_x;
 				}
-				else
-				{
-                    pjumpframe++;
-				}
+				else pjumpframe++;
+
 				pjumpanimtimer=0;
 			} else pjumpanimtimer++;
 			break;
         case PJUMPUP:
         case PPOGOING:
-			// check for hitting a ceiling
-			if (blockedu)   // did we bonk something?
-			{  // immediatly abort the jump
-				pjumping = PNOJUMP;
-				g_pSound->playStereofromCoord(SOUND_KEEN_BUMPHEAD, PLAY_NOW, mp_object->at(m_player_number).scrx);
-			}
-			
 			// do the jump
+        	// check for hitting a ceiling
+        	if (blockedu)   // did we bonk something?
+        	{  // immediatly abort the jump
+        		//pjumping = PNOJUMP;
+        		if(!bumped)
+        		{
+        			g_pSound->playStereofromCoord(SOUND_KEEN_BUMPHEAD, PLAY_NOW, scrx);
+            		bumped = true;
+        		}
+        		pjumpupspeed-=pjumpupspeed_decrease*4;
+        	}
+
 			if (!pjumptime)
 			{
 				if (pjumpupspeed <= 0)
 				{
 					pjumpupspeed = 0;
-					pjumping = PNOJUMP;
+					pjumping = PJUMPLAND;
 				}
 				else
 				{
@@ -468,7 +521,34 @@ void CPlayer::JumpAndPogo()
 			}
 			else pjumptime--;
 			
-			goto_y -= pjumpupspeed;
+			moveUp(pjumpupspeed);
+			pjustjumped = true;
+
+			break;
+        case PJUMPLAND:
+			// do the jump
+
+			if (!pjumptime)
+			{
+				if (blockedd)
+				{
+					pjumpupspeed = 0;
+					pjumping = PNOJUMP;
+				}
+				else
+				{
+					if(pjumpupspeed < mp_PhysicsSettings->player.max_fallspeed)
+						pjumpupspeed+=pjumpupspeed_decrease*2;
+					else
+					{
+						pjumpupspeed=mp_PhysicsSettings->player.max_fallspeed;
+						pjumping = PNOJUMP;
+					}
+				}
+			}
+			else pjumptime--;
+
+			moveDown(pjumpupspeed);
 			pjustjumped = true;
 
 			break;
@@ -481,34 +561,145 @@ void CPlayer::JumpAndPogo()
 		if(!ppogostick)
 		{
 			if (playcontrol[PA_X] < 0)
-				pinertia_x-=1;
+				xinertia-=3;
 			if (playcontrol[PA_X] > 0)
-				pinertia_x+=1;
+				xinertia+=3;
 		}
 		else if(ppogostick)
 		{
 			if (playcontrol[PA_X] < 0)
-				pinertia_x -= (mp_PhysicsSettings->player.pogoforce_x/10);
+				xinertia -= (mp_PhysicsSettings->player.pogoforce_x/10);
 			if (playcontrol[PA_X] > 0)
-				pinertia_x += (mp_PhysicsSettings->player.pogoforce_x/10);
+				xinertia += (mp_PhysicsSettings->player.pogoforce_x/10);
 		}
 	}
-	else if(pfalling && !ppogostick)
+	else if(pfalling)
 	{
-		if(pinertia_x<0) pinertia_x+=2;
-		if(pinertia_x>0) pinertia_x-=2;
+		if(!ppogostick) {
+			if(xinertia<0) xinertia+=2;
+			if(xinertia>0) xinertia-=2;
+		}
 
 		if (playcontrol[PA_X] < 0)
-			pinertia_x-=2;
+			xinertia-=2;
 		if (playcontrol[PA_X] > 0)
-			pinertia_x+=2;
+			xinertia+=2;
 	}
 	
     // If we are in Godmode, use the Pogo, and pressing the jump button, make the player fly
-    if( godmode && ppogostick &&
-	   g_pInput->getHoldedCommand(0, IC_JUMP) && !blockedu )
-    	goto_y -= PPOGOUP_SPEED;
+    if( godmode && ppogostick )
+    {
+    	if(playcontrol[PA_X] < 0) xinertia-=4;
+    	if(playcontrol[PA_X] > 0) xinertia+=4;
+    	if(g_pInput->getHoldedCommand(0, IC_JUMP) && !blockedu)
+    		moveUp(PPOGOUP_SPEED);
+    }
+}
 
+void CPlayer::Playerfalling()
+{
+//unsigned int temp;
+char behaviour;
+stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
+
+	if (pfalling)
+	{
+		bumped = false;
+		if (plastfalling == 0)
+		{
+			if (!pjustjumped)
+				g_pSound->playStereofromCoord(SOUND_KEEN_FALL, PLAY_NOW, scrx);
+		}
+	}
+
+	// save fall state so we can detect the high/low-going edges
+	plastfalling = pfalling;
+
+	if(pdie) return;
+
+	// do not fall if we're jumping
+	if (pjumping)
+	{
+		psemisliding = false;
+		return;
+	}
+
+	// ** determine if player should fall (nothing solid is beneath him) **
+	int xleft  = getXLeftPos();
+	int ydown  = getYDownPos();
+
+	behaviour = TileProperty[mp_map->at(xleft>>CSF, ydown>>CSF)].behaviour;
+	if( behaviour>=2 && behaviour<=5 )
+		blockedu = true; // This workaround prevents the player from falling through doors.
+
+	if(!blockedd && !pjumping && !supportedbyobject)
+	{ // lower-left isn't solid, check right side
+		pfalling = true;        // so fall.
+		pjustfell = true;
+	}
+	else
+	{
+		pfalling = false;
+		psliding = false;
+		psemisliding = false;
+
+		// Check if player is on ice
+		if(!pjumping)
+		{
+			int ice = TileProperty[mp_map->at(getXLeftPos()>>CSF, (ydown+1)>>CSF)].bup;
+			ice |= TileProperty[mp_map->at(getXRightPos()>>CSF, (ydown+1)>>CSF)].bup;
+			if(!blockedl && !blockedr)
+			{
+				if(ice == 2) psemisliding = true;
+				else if(ice == 3) psliding = true;
+			}
+		}
+	}
+
+	// ** if the player should be falling, well what are we waiting for?
+	//    make him fall! **
+	if (mp_option[OPT_CHEATS].value && g_pInput->getHoldedKey(KPLUS))
+	{
+		pfalling = true;
+		pjustfell = true;
+	}
+
+	if (pfalling)
+	{  // nothing solid under player, let's make him fall
+		psemisliding = 0;
+
+		// gradually increase the fall speed up to maximum rate
+		if (pfallspeed>mp_PhysicsSettings->player.max_fallspeed)
+			pfallspeed = mp_PhysicsSettings->player.max_fallspeed;
+		else if (pfallspeed<mp_PhysicsSettings->player.max_fallspeed)
+			pfallspeed += mp_PhysicsSettings->player.fallspeed_decrease;
+
+		// add current fall speed to player Y or make him fly in godmode with pogo
+		if( !godmode || !ppogostick || !g_pInput->getHoldedCommand(IC_JUMP) )
+			moveDown(pfallspeed);
+	}
+	else
+	{  // not falling
+		if (plastfalling)
+		{  // just now stopped falling
+			if (pdie != PDIE_FELLOFFMAP)
+				g_pSound->stopSound(SOUND_KEEN_FALL);  // terminate fall noise
+			// thud noise
+			if (!ppogostick)
+				g_pSound->playStereofromCoord(SOUND_KEEN_LAND, PLAY_NOW, scrx);
+			// fix "sliding" effect when you fall, go one way, then
+			// before you land turn around and as you hit the ground
+			// you're starting to move the other direction
+			// (set inertia to 0 if it's contrary to player's current dir)
+		}
+	}   // close "not falling"
+
+	// ensure no sliding if we fall or jump off of ice
+	if (pfalling || pjumping) psliding=0;
+
+	// If he falls to the ground even being god, kill him
+	if( (Uint16)getYDownPos() > ((mp_map->m_height)<<CSF) )
+		kill(true);
 }
 
 // wouldn't it be cool if keen had a raygun, and he could shoot things?
@@ -516,12 +707,12 @@ void CPlayer::JumpAndPogo()
 void CPlayer::raygun()
 {
 	bool canRefire;
-	CObject *pPlayerObject = &mp_object->at(m_player_number);
+	CObject *pPlayerObject = &mp_object->at(m_index);
 	
 	if (pfireframetimer) pfireframetimer--;
 	
 	// FIRE button down, and not keencicled?
-	if ( playcontrol[PA_FIRE] && !pfrozentime)
+	if ( playcontrol[PA_FIRE] && !pfrozentime && !(g_pInput->getHoldedKey(KC) && g_pInput->getHoldedKey(KT)) )
 	{ // fire is pressed
 		inhibitwalking = 1;            // prevent moving
 		pfiring = true;  // flag that we're firing
@@ -548,26 +739,28 @@ void CPlayer::raygun()
 			if (inventory.charges)
 			{  // we have enough charges
 				int xdir, ydir;
-				CObject rayobject;
+				CObject rayobject(mp_map, mp_object->size());
 				inventory.charges--;
 				pshowdir = pdir;
 				
 				g_pSound->playStereofromCoord(SOUND_KEEN_FIRE, PLAY_NOW, pPlayerObject->scrx);
 				
-				ydir = y+(9<<(CSF-4));
-				if (pdir==RIGHT) xdir = x+((g_pGfxEngine->Sprite[0]->getWidth())<<(STC));
-				else xdir = x-(17<<(STC));
+				ydir = getYPosition()+(9<<STC);
+				if (pdir==RIGHT) xdir = getXRightPos()+xinertia;
+				else xdir = getXLeftPos()+xinertia;
 				
-				rayobject.spawn(xdir, ydir, OBJ_RAY);
+				rayobject.spawn(xdir, ydir, OBJ_RAY, m_episode, pdir);
+				rayobject.ai.ray.owner = m_index;
+				rayobject.ai.ray.shotbyplayer = true;
 				rayobject.ai.ray.direction = pdir;
 				
-				rayobject.ai.ray.dontHitEnable = false;
+				rayobject.ai.ray.dontHitEnable = true;
 				if (!mp_option[OPT_ALLOWPKING].value)
 					rayobject.ai.ray.dontHit = OBJ_PLAYER;
 				mp_object->push_back(rayobject);
 			}
 			else
-			{ // oh shit, out of bullets
+			{ // uh oh, out of bullets
 				// click!
 				g_pSound->playStereofromCoord(SOUND_GUN_CLICK, PLAY_NOW, pPlayerObject->scrx);
 				
@@ -594,19 +787,19 @@ void CPlayer::raygun()
 // select the appropriate player frame based on what he's doing
 void CPlayer::SelectFrame()
 {
-    playframe = 0;      // basic standing
-	
+    sprite = playerbaseframe;      // basic standing
+
     // select the frame assuming he's pointing right. ep1 does not select
     // a walk frame while fading--this is for the bonus teleporter in L13.
-    if (pdie) playframe = PDIEFRAME + pdieframe;
+    if (pdie) sprite += PDIEFRAME + pdieframe;
     else
     {
-        if (pfrozentime) playframe = PFRAME_FROZEN + pfrozenframe;
-        else if (pfiring) playframe = PFIREFRAME;
-        else if (ppogostick) playframe = PFRAME_POGO + (pjumping==PPREPAREPOGO);
-        else if (pjumping) playframe += pjumpframe;
-        else if (pfalling) playframe += 13;
-        else if (pwalking || playpushed_x) playframe += pwalkframe;
+        if (pfrozentime) sprite = PFRAME_FROZEN + pfrozenframe;
+        else if (pfiring) sprite += PFIREFRAME;
+        else if (ppogostick) sprite += PFRAME_POGO + (pjumping==PPREPAREPOGO);
+        else if (pjumping) sprite += pjumpframe;
+        else if (pfalling) sprite += 13;
+        else if (pwalking || playpushed_x || psemisliding) sprite += pwalkframe;
     }
 	
     // if he's going left switch the frame selected above to the
@@ -615,19 +808,19 @@ void CPlayer::SelectFrame()
     {
 		if (pfiring)
 		{
-			playframe++;
+			sprite++;
 		}
 		else if (ppogostick)
 		{
-			playframe+=2;
+			sprite+=2;
 		}
 		else if (pjumping || pfalling)
 		{
-			playframe+=6;
+			sprite+=6;
 		}
 		else
 		{
-			playframe+=4;
+			sprite+=4;
 		}
     }
 }
@@ -638,8 +831,7 @@ void CPlayer::ankh()
 	if (!ankhtime) return;
 	
 	o = ankhshieldobject;
-	mp_object->at(o).x = x - (8<<CSF);
-	mp_object->at(o).y = y - (8<<CSF);
+	mp_object->at(o).moveTo(getXPosition()-(8<<CSF), getYPosition()-(8<<CSF));
 	
 	ankhtime--;
 	if (!ankhtime)
@@ -660,25 +852,60 @@ void CPlayer::bump( int pushamt, bool solid )
 {
 	playpushed_x = pushamt;
 	
-	if (pushamt > 0 && pinertia_x < pushamt) pinertia_x = pushamt;
-	else if (pinertia_x > pushamt) pinertia_x = pushamt;
+	if (pushamt > 0 && xinertia < pushamt) xinertia = pushamt;
+	else if (xinertia > pushamt) xinertia = pushamt;
 
 	if (solid)
 	{
 		if (pushamt > 0)
 		{
-			if (pinertia_x < 0)
-				pinertia_x = 0;
+			if (xinertia < 0)
+				xinertia = 0;
 		}
 		else
 		{
-			if (pinertia_x > 0)
-				pinertia_x = 0;
+			if (xinertia > 0)
+				xinertia = 0;
 		}
 	}
 	
 	playpushed_decreasetimer = 0;
 	if (!pjumping)
-		pdir = pshowdir = (pushamt<0)?LEFT:RIGHT;
+		pdir = pshowdir = (pushamt<0) ? LEFT : RIGHT;
+}
+
+void CPlayer::checkSolidDoors()
+{
+	int mx1 = getXLeftPos()>>CSF;
+	int mxmid = getXMidPos()>>CSF;
+	int mx2 = getXRightPos()>>CSF;
+	int my1 = getYUpPos()>>CSF;
+	int mymid = getYMidPos()>>CSF;
+	int my2 = getYDownPos()>>CSF;
+	stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
+
+	if( (TileProperty[mp_map->at(mx1 ,mymid)].behaviour>1 &&
+			TileProperty[mp_map->at(mx1 ,mymid)].behaviour<6 ) ) {
+		blockedl = true;	}
+
+	if( (TileProperty[mp_map->at(mx2 ,mymid)].behaviour>1 &&
+			TileProperty[mp_map->at(mx2 ,mymid)].behaviour<6 ) ) {
+		blockedr = true;	}
+
+	if( (TileProperty[mp_map->at(mxmid ,my1)].behaviour>1 &&
+			TileProperty[mp_map->at(mxmid ,my1)].behaviour<6 ) ) {
+		blockedd = true;	}
+
+	if( (TileProperty[mp_map->at(mxmid ,my2)].behaviour>1 &&
+			TileProperty[mp_map->at(mxmid ,my2)].behaviour<6 ) ) {
+		blockedu = true;	}
+}
+
+
+int CPlayer::pollLevelTrigger()
+{
+	int trigger = m_Level_Trigger;
+	m_Level_Trigger = LVLTRIG_NONE;
+	return trigger;
 }
 

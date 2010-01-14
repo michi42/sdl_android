@@ -19,14 +19,18 @@
 #include "../../common/CMap.h"
 #include "../../common/options.h"
 #include "../../common/CPhysicsSettings.h"
+#include "../../common/CTeleporter.h"
 #include "../ai/CObjectAI.h"
 #include "../ai/CEGABitmap.h"
 #include "../finale/CEndingEp1.h"
 #include "../finale/CEndingEp2.h"
 #include "../finale/CEndingEp3.h"
+#include "../../hqp/CMusic.h"
+#include "../infoscenes/CHighScores.h"
 #include <SDL.h>
 #include <string>
 #include <vector>
+#include <list>
 
 enum door_colours{
 DOOR_YELLOW = 2,
@@ -51,11 +55,12 @@ public:
 	CPlayGame( char episode, char level,
 			  char numplayers, char difficulty,
 			  std::string &gamepath, stOption *p_option,
-			  bool finale, CSavedGame &SavedGame);
+			  bool finale, CSavedGame &SavedGame,
+			  std::vector<stTeleporterTable> &TeleporterTable);
 
 	void setupPlayers();
 	bool init();
-	void createPlayerObjects();
+	//void createPlayerObjects();
 
 	// Game states
 	bool loadGameState();
@@ -71,7 +76,8 @@ public:
 	void processObjectsAI();
 	void drawObjects();
 	void handleFKeys();
-	void verifyCutscenes();
+	void verifyFinales();
+	void collectHighScoreInfo();
 	void createFinale();
 
 	// Collision stuff stored in CPlayGameCollision.cpp
@@ -80,10 +86,10 @@ public:
 	bool checkisSolidl(CPlayer *p_player);
 	bool checkisSolidd(CPlayer *p_player);
 	bool checkisSolidu(CPlayer *p_player);
+	void checkStandingOnIce(CPlayer &player);
 	char checkDoorBlock(int t, CPlayer *p_player, int which);
-	int checkObjSolid(unsigned int x, unsigned int y, int cp);
 	void processPlayerfallings(CPlayer *p_player);
-	void ExtendingPlatformSwitch(int x, int y);
+	void processLevelTrigger(int trigger);
 	void losePlayer(CPlayer *p_player);
 
 	// Dialog processes stored in CPlayGameDialogs.cpp
@@ -93,10 +99,12 @@ public:
 	bool isFinished()
 	{ return m_finished; }
 
-	bool getEndGame() { return m_endgame; }
-	bool getStartGame() { return m_startgame; }
-	bool getExitEvent() { return m_exitgame; }
-	char getEpisode(){	return m_Episode; }
+	bool getEndGame();
+	bool getStartGame();
+	bool getExitEvent();
+	char getEpisode();
+	char getNumPlayers();
+	char getDifficulty();
 
 	void cleanup();
 	virtual ~CPlayGame();
@@ -121,8 +129,9 @@ private:
 	bool mp_level_completed[MAX_LEVELS];
 	int m_checkpoint_x, m_checkpoint_y;
 	bool m_checkpointset;
+	bool m_dark;
 
-	CMap *mp_Map;
+	CMap m_Map;
 	CMenu *mp_Menu;
 	std::vector<CPlayer> m_Player;
 	CObjectAI *mp_ObjectAI;
@@ -131,8 +140,10 @@ private:
 	stOption *mp_option;
 	CSavedGame &m_SavedGame;
 	CPhysicsSettings m_PhysicsSettings;
-	CMessageBox *mp_MessageBox;
+	std::list<CMessageBox*> m_MessageBoxes;
+	std::vector<stTeleporterTable> &m_TeleporterTable;
 	bool m_showKeensLeft;
 	std::vector<CObject> m_Object;
+	CHighScores *mp_HighScores;
 };
 #endif /* CPlayGame_H_ */

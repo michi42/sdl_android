@@ -22,10 +22,13 @@ class CObjectAI {
 public:
 	CObjectAI(CMap *p_map, std::vector<CObject> &objvect, std::vector<CPlayer> &Player,
 			 stOption *p_options, int NumPlayers, int episode, int level,
-			 char difficulty, CPhysicsSettings &PhysicsSettings);
+			 char difficulty, CPhysicsSettings &PhysicsSettings, bool &dark);
 
 	// main functions
 	void process();
+
+	bool getPlatMoving();
+	void triggerPlat(bool value);
 
 	virtual ~CObjectAI();
 private:
@@ -34,6 +37,7 @@ private:
 	bool checkforAIObject( CObject &object );
 	void performSpecialAIType( CObject &object );
 	void deleteObj(CObject &object);
+	void deleteAllObjects();
 
 	// ep1
 	void yorp_ai(CObject &object, CPlayer *p_player, bool hardmode);
@@ -53,26 +57,55 @@ private:
 	void rope_movestone(CObject &object);
 
 	// ep2
-	//void baby_ai(CObject &object, int episode, bool hard)
-	//void scrub_ai(int o, stLevelControl levelcontrol);
-	//void tankep2_ai(int o, bool hardmode);
-	//void platform_ai(int o, stLevelControl levelcontrol);
-	//void vortelite_ai(int o, bool darkness);
-	//void se_ai(int o, stLevelControl *p_levelcontrol);
-	//void explosion_ai(int o);
-	//void earthchunk_ai(int o);
-	//void spark_ai(int o, int *p_sparks_left);
+	void baby_ai(CObject &object, int episode, bool hard);
+	void baby_jump(CObject &object, int big);
 
-	 /*// ep3
-	 void foob_ai(int o, bool hardmode);
-	 void ninja_ai(int o, bool hardmode);
-	 void meep_ai(int o, stLevelControl levelcontrol);
-	 void sndwave_ai(int o, bool hardmode);
-	 void mother_ai(int o, stLevelControl levelcontrol);
-	 void fireball_ai(int o, bool hard);
-	 void ballandjack_ai(int o);
-	 void platvert_ai(int o);
-	 void nessie_ai(int o);*/
+	void scrub_ai(CObject &object);
+	void Scrub_TurnOnCansupportWhereNotKicked(CObject &object);
+
+	void tankep2_ai(CObject &object, bool hardmode);
+	void tank2_fire(CObject &object);
+	void tank_searchplayers(CObject &object);
+
+	void platform_ai(CObject &object);
+
+	void vortelite_ai(CObject &object, bool darkness);
+	void vortelite_initiatejump(CObject &object);
+
+	// Sector Effector Members
+	void se_ai(CObject &object);
+	void se_extend_plat(CObject &object, bool &PlatExtending);
+	void se_retract_plat(CObject &object, bool &PlatExtending);
+	void spark_ai(CObject &object, int &sparks_left);
+	void se_ankhshield(CObject &object, int episode);
+	void se_mortimer_arm(CObject &object);
+	void se_mortimer_spark(CObject &object);
+	void se_mortimer_heart(CObject &object);
+	void se_mortimer_zapsup(CObject &object);
+	void se_mortimer_leg_left(CObject &object);
+	void se_mortimer_leg_right(CObject &object);
+	void se_mortimer_randomzaps(CObject &object);
+	void set_mortimer_surprised(bool yes);
+
+	void explosion_ai(CObject &object);
+	void earthchunk_ai(CObject &object);
+
+	 // ep3
+	 void foob_ai(CObject &object, bool hardmode);
+	 void ninja_ai(CObject &object, bool hardmode);
+	 void meep_ai(CObject& object);
+	 void sndwave_ai(CObject& object, bool hardmode);
+	 void mother_ai(CObject& object, bool hardmode);
+	 void fireball_ai(CObject &object, bool hard);
+
+	 void ballandjack_ai(CObject& object);
+	 bool BJ_BlockedD(CObject &object);
+
+	 void platvert_ai(CObject& object);
+
+	 void nessie_ai(CObject& object);
+	 void move_nessie(CObject& object);
+	 void nessie_find_next_checkpoint(CObject& object);
 
 	 // Common Objects
 	void autoray_ai(CObject &object);
@@ -82,7 +115,7 @@ private:
 	void teleporter_ai(CObject &object);
 
 	void killplayer(int theplayer);
-	void SetAllCanSupportPlayer(CObject &object, int state);
+	void SetAllCanSupportPlayer(CObject &object, bool state);
 	void kill_all_intersecting_tile(int mpx, int mpy);
 
 	// Variables
@@ -93,9 +126,17 @@ private:
 	CPhysicsSettings m_PhysicsSettings;
 	int m_Level;
 	int m_Episode;
-	int m_NumPlayers;
 	char m_difficulty;
 	int m_gunfiretimer;
+	bool &m_dark;
+	unsigned int m_bgtile; // Used as holder for bridges
+
+	// for ep2: how many sparks (tantalus ray machines) are left
+	// you must destroy the tantalus ray generator before exiting
+	int sparks_left;
+
+	// if true, a moving platform is currently extending/retracting (ep2)
+	bool PlatExtending;
 };
 
 #endif /* COBJECTAI_H_ */

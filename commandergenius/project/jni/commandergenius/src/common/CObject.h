@@ -13,9 +13,14 @@
 
 #define MAX_PLAYERS            4
 
+// supported by an object and you should look in player[].psupportingobj
+// for it's index.
+#define PSUPPORTEDBYOBJECT         0
+
 // structures for each AI module's data
 #include "../vorticon/ai/enemydata.h"
 #include "../common/CMap.h"
+#include "../game.h"
 #include "options.h"
 #include <vector>
 
@@ -24,15 +29,14 @@
 
 class CObject {
 public:
-	CObject(int num_players=1);
+	CObject(CMap *pmap, int index=0);
 	
 	unsigned int m_type;        // yorp, vorticon, etc.
+	unsigned int m_index;        // Like an ID for some objects that need this implementation
 	bool exists;
 	bool onscreen;    			// true=(scrx,scry) position is visible onscreen
 	bool hasbeenonscreen;
 	unsigned int sprite;      			// which sprite should this object be drawn with
-	unsigned int x, y;        			// x,y location in map coords, CSFed
-	unsigned int new_x, new_y;        // x,y next location in map coords, CSFed, used for collision only
 	int scrx, scry;           // x,y pixel position on screen
 	
 	// Bouncing Boxes
@@ -53,23 +57,27 @@ public:
 	int zapx, zapy, zapd;	   // x,y, and direction of last shot at time of impact
 	char zappedbyenemy;	   // if 1, it was an ENEMYRAY and not keen that shot it
 	
-	char inhibitfall;         // if true common_enemy_ai will not do falling
-	std::vector<bool> cansupportplayer;
+	bool inhibitfall;         // if true common_enemy_ai will not do falling
+ 	bool bumped;
+
+	bool cansupportplayer;
+	std::vector<CObject> *mp_object;
 	
-	unsigned int blockedl, blockedr, blockedu, blockedd;
+	bool blockedl, blockedr, blockedu, blockedd;
 	signed int xinertia, yinertia;
 	unsigned char xinertiatimer;
+	unsigned int psupportingobject, lastsupportingobject;
+	bool supportedbyobject;
 	
 	unsigned char touchPlayer;      // 1=hit detection with player
 	unsigned char touchedBy;        // which player was hit
 	// Y position on this object the hit was detected
 	// this is used for the yorps' bonk-on-the-head thing.
-	// objects are scanned bottom to top, and first pixel
+	// objects arm_typee scanned bottom to top, and first pixel
 	// touching player is what goes in here.
 	unsigned char hity;
 	
 	bool needinit;    // 1=new object--requires initilization
-	unsigned char wasoffscreen;  // set to 1 when object goes offscreen
 	bool dead;
 	
 	// data for ai and such, used differently depending on
@@ -104,25 +112,55 @@ public:
 		stNessieData nessie;
 	} ai;
 	
-	void setupObjectType();
+	void setupObjectType(int Episode);
+	void checkinitialCollisions();
 	void setScrPos( int px, int py );
-	bool spawn(int x0, int y0, int otype);
+	bool calcVisibility( int player_x, int player_y );
+	bool spawn(int x0, int y0, int otype, int Episode, char dirof = RIGHT );
+	void setIndex(int index);
 	
+	// Moving parts
+	void moveToForce(int new_x, int new_y);
+	void moveTo(int x, int y);
+	void moveXDir(int amount, bool force = false);
+	void moveYDir(int amount);
+	void moveLeft(int amount, bool force = false);
+	void moveRight(int amount, bool force = false);
+	void moveUp(int amount);
+	void moveDown(int amount);
+
+	void decreaseXInertia(int value);
+
 	virtual void process() { }
 	
 	bool hitdetect(CObject &hitobject);
 	void kill();
 
 	// Collision parts
-	void performCollision(CMap *p_map);
-	bool checkSolidR(stTile *TileProperty, CMap *p_map, int x2, int y1, int y2);
-	bool checkSolidL(stTile *TileProperty, CMap *p_map, int x1, int y1, int y2);
-	bool checkSolidU(stTile *TileProperty, CMap *p_map, int x1, int x2, int y1);
-	bool checkSolidD(stTile *TileProperty, CMap *p_map, int x1, int x2, int y2);
+	bool checkSolidR( int x2, int y1, int y2);
+	bool checkSolidL( int x1, int y1, int y2);
+	bool checkSolidU( int x1, int x2, int y1);
+	bool checkSolidD( int x1, int x2, int y2);
+
+	// getters
+	unsigned int getXPosition();
+	unsigned int getYPosition();
+	unsigned int getXLeftPos();
+	unsigned int getXRightPos();
+	unsigned int getXMidPos();
+	unsigned int getYUpPos();
+	unsigned int getYDownPos();
+	unsigned int getYMidPos();
 
 	void processFalling();
 
+	void draw();
+
 	virtual ~CObject();
+
+private:
+	CMap *mp_Map;
+	unsigned int x, y;        			// x,y location in map coords, CSFed
 };
 
 #endif /* COBJECT_H_ */

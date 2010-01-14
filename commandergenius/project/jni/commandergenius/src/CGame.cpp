@@ -68,7 +68,6 @@ bool CGame::loadCKPDrivers()
 	return true;
 }
 
-
 /////////////////////////////
 // Process Game Engine here! //
 /////////////////////////////
@@ -86,12 +85,19 @@ void CGame::run()
 		
         // Render the Screen
         if (g_pTimer->TimeToRender()) {
-            g_pVideoDriver->update_screen();
+        	// Pass all the surfaces to one
+        	g_pVideoDriver->collectSurfaces();
+        	// Apply graphical effects if any
+        	g_pGfxEngine->process();
+			// Now you really Render the screen
+        	// When enabled, it also will apply Filters
+            g_pVideoDriver->updateScreen();
         }
 		
         // delay time remaining in current loop
         g_pTimer->TimeToDelay();
-	} while(!m_GameControl.mustShutdown());
+
+	} while(!m_GameControl.mustShutdown() && !g_pInput->getExitEvent());
 }
 
 ///////////////////////////////

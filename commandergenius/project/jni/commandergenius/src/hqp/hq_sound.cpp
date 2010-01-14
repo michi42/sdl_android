@@ -14,7 +14,7 @@
 
 #include <vector>
 
-short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::string& soundfile)
+short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::string& gamepath, const std::string& soundname)
 {
 	SDL_AudioSpec AudioFileSpec;
 	SDL_AudioCVT  Audio_cvt;
@@ -23,10 +23,18 @@ short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::stri
 	std::string buf;
 	FILE *fp;
 
-	buf = "games/hqp/snd/" + soundfile + ".OGG"; // Start with OGG
-	if((fp = OpenGameFile(buf.c_str(),"rb")) != NULL)
+	buf = gamepath+"snd/" + soundname + ".OGG"; // Start with OGG
+
+	fp = OpenGameFile(buf.c_str(),"rb");
+
+	if( fp == NULL) { // try global path
+		buf = "data/snd/" + soundname + ".OGG"; // Start with OGG
+		fp = OpenGameFile(buf.c_str(),"rb");
+	}
+
+	if(fp != NULL)
 	{
-#ifdef BUILD_WITH_OGG
+#ifdef OGG
 		if(openOGGSound(fp, &AudioFileSpec, AudioSpec->format, psound) != 0)
 		{
 			std::string buf2;
@@ -38,9 +46,9 @@ short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::stri
 
 #endif
 
-#ifndef BUILD_WITH_OGG
+#ifndef OGG
 		g_pLogFile->textOut(PURPLE,"NOTE: OGG-Support is disabled! Get another version or compile it yourself!<br>");
-		buf = "games/hqp/snd/"+ soundfile + ".WAV";
+		buf = "games/hqp/snd/"+ soundname + ".WAV";
 
 		std::string fullfname = GetFullFileName(buf);
 		if(fullfname.size() == 0)
@@ -53,7 +61,7 @@ short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::stri
 	}
 	else
 	{
-		buf = "games/hqp/snd/" + soundfile + ".WAV";
+		buf = gamepath+"snd/" + soundname + ".WAV";
 
 		std::string fullfname = GetFullFileName(buf);
 		if(fullfname.size() == 0)
@@ -62,7 +70,7 @@ short HQSndDrv_Load(SDL_AudioSpec *AudioSpec, stHQSound *psound, const std::stri
 		// Check, if it is a wav file or go back to classic sounds
 		if (SDL_LoadWAV (Utf8ToSystemNative(fullfname).c_str(), &AudioFileSpec, &(psound->sound_buffer), &(psound->sound_len)) == NULL)
 		{
-			g_pLogFile->textOut(GREEN, "Loading the classic sound : " + soundfile);
+			g_pLogFile->textOut(GREEN, "Loading the classic sound : " + soundname);
 			return 1;
 		}
 	}

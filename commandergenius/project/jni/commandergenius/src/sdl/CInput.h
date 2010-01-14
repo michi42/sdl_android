@@ -10,22 +10,12 @@
 
 #include <SDL.h>
 #include <string>
-
-#ifdef WIZGP2X
-#include <sys/ioctl.h>
-#include <sys/soundcard.h>
-#include <fcntl.h>
-#include <unistd.h>
-#endif
+#include <list>
 
 #include "../CSingleton.h"
 #define g_pInput	CInput::Get()
 
 // key defines, locations in keytable[]
-//#define KEYTABLE_SIZE            160
-//#define KEYTABLE_REALKEYS_SIZE   49
-
-// TODO: Change this to enums
 enum keys{
 	// Ascii keys
 	KSPACE = 32,
@@ -139,7 +129,7 @@ enum InputCommands{
 	IC_FIRE,
 	IC_STATUS,
 	IC_HELP,
-	IC_QUIT
+	IC_QUIT,
 };
 
 const int MAX_COMMANDS = 10;
@@ -191,6 +181,10 @@ public:
 	bool getPressedCommand(int player, int command);
 	bool getPressedAnyCommand(int player);
 	bool getExitEvent(void);
+
+	bool getTwoButtonFiring(int player);
+	void setTwoButtonFiring(int player, bool value);
+
 	void cancelExitEvent(void);
 
 	void getEventName(int position, unsigned char input, std::string &buf);
@@ -207,29 +201,21 @@ public:
 
 private:
 	SDL_Event Event;
-	SDL_Joystick *mp_Joystick;
+	std::list<SDL_Joystick*> mp_Joysticks;
 
 	stInputCommand InputCommand[NUM_INPUTS][NUMBER_OF_COMMANDS];
+	bool TwoButtonFiring[NUM_INPUTS];
+
 	bool m_exit;
 	int m_cmdpulse;
 	short m_joydeadzone;
 
 	bool immediate_keytable[KEYTABLE_SIZE];
 	bool last_immediate_keytable[KEYTABLE_SIZE];
-#ifdef WIZGP2X
-	int volume;
-	int volume_direction;
-#endif
 
 	void processKeys(int value);
 	void processJoystickAxis(void);
 	void processJoystickButton(int value);
-#ifdef WIZGP2X
-	void WIZ_EmuKeyboard( int button, int value );
-	void WIZ_AdjustVolume( int direction );
-#endif
 };
-
-
 
 #endif /* CINPUT_H_ */

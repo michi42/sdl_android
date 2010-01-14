@@ -7,27 +7,15 @@
 
 #include "CFinale.h"
 #include "../../sdl/CVideoDriver.h"
-#include "../../fileio/CExeFile.h"
+#include "../../CLogFile.h"
+#include "../../FindFile.h"
+#include <fstream>
 
-CFinale::CFinale() : mp_TextViewer(NULL) {
-}
-
-void CFinale::init_ToBeContinued()
-{
-	/*int i;
-	 std::string text;
-	 int dlgX, dlgY, dlgW, dlgH;
-
-	 // remove all objects because eseq_showmsg will call drawobjects
-	 for(i=0;i<MAX_OBJECTS;i++)
-     objects[i].exists = 0;
-
-	 text = getstring("TO_BE_CONTINUED");
-	 dlgX = GetStringAttribute("TO_BE_CONTINUED", "LEFT");
-	 dlgY = GetStringAttribute("TO_BE_CONTINUED", "TOP");
-	 dlgW = GetStringAttribute("TO_BE_CONTINUED", "WIDTH");
-	 dlgH = GetStringAttribute("TO_BE_CONTINUED", "HEIGHT");*/
-}
+CFinale::CFinale(CMap &map) :
+m_mustfinishgame(false),
+mp_TextViewer(NULL),
+m_Map(map)
+{}
 
 void CFinale::showEndingText()
 {
@@ -51,20 +39,25 @@ void CFinale::showEndingText()
 
 void CFinale::initEpilogue(std::string &text)
 {
-	unsigned char *filebuf;
-	unsigned long startflag=0x1652A-512, endflag=0x1679A-512; // where story begins and ends!
+    std::ifstream endfile;
 
-	CExeFile *ExeFile = new CExeFile(m_Episode, mp_Map->m_gamepath);
-	if(!ExeFile) return;
-	if(!ExeFile->readData()) return;
-	filebuf = ExeFile->getData() + startflag;
+    std::string filename =  m_Map.m_gamepath + "endtext.ck" + itoa(m_Episode);
 
-	for( unsigned long i=0 ; i<endflag-startflag ; i++ )
-	{
-		if(filebuf[i])
-			text.push_back(filebuf[i]);
-	}
-	delete ExeFile;
+    OpenGameFileR(endfile, filename);
+    if (endfile.is_open())
+    {
+        while(!endfile.eof())
+        {
+        	text.push_back(endfile.get());
+        }
+
+        endfile.close();
+    }
+    else
+    {
+    	g_pLogFile->textOut("Error reading \"" + filename + "\". Check if this file is in your directory!");
+    }
+
 }
 
 CFinale::~CFinale() {

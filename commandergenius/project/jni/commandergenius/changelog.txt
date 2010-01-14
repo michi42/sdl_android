@@ -4,6 +4,54 @@ Commander Genius Release (CloneKeenPlus):
 v0.3.1.0:
 ---------
 
+07-01-2010
+- Improved Multiplayer experience a bit (Still WIP)
+
+06-01-2010
+- New collision system which now is shared with all foes and the player
+- improved some AI (Tulip). Some are still missing
+- fixed memory leaks
+- fixed other issues and crashes
+- Small speed up!
+
+30-12-2009
+- Added more Keen4 code and fixed errors with the huffman decompression
+- Fixed AI Bugs of baby-vorticon
+- Fixed AI Bugs of meep
+- Fixed minor problems we had with AI
+- Fixed an animation errors with priority tiles
+
+29-12-2009
+- Fixed some enemy issues
+- Integrated some Keen 4 Code, which still is under construction
+- Integrated a better unlzexe algorithm.
+- Nessie now should work correctly!
+- Changed Tile animation speed
+
+18-12-2009
+- Added enemies of Ep 2 back. All are avialable now, but still buggy.
+- fixed minor collision problems
+- fixed other minor issues and segfaults
+
+16-12-2009
+- Slippery ice tiles are working again as before! Keen can semi/slide on them
+
+15-12-2009
+- Minor fixes
+- New effects class. Vibration and Vorticon shot scene in EP1 are working again.
+- New Merge Colour effect, which can be seen, when player enters a level
+
+13-12-2009
+- Added Vorticon Elite back to CG
+
+12-12-2009
+- Added Tank-Robot of Episode 2 back
+- Physics improvements
+- Teleporter in Episode 3 don't need the exe file. But it's calculated now...
+- Teleporter are now read from the Exe-file in Episode 1 
+- Improved AI (Yorp)
+- Removed some ugly tiles on the title screen
+
 10-12-2009
 - Fixed some hidden segfaults and wrong inits, which provoked the yorps getting unstunnable
 - Now using the fonts.bmp file, we can use other font graphics (with hi-colour support!)

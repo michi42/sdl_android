@@ -18,15 +18,13 @@ PA_FIRE, PA_STATUS
 // upon starting to walk, keen will quickly increase to
 // PFASTINCMAXSPEED. keen can, at a slower rate,
 // reach up to PMAXSPEED (increased every walk anim frame)
-//#define PFASTINCMAXSPEED 36
-//#define PFASTINCMAXSPEED 40
-#define PJUMPINERTIA     30
 #define PFASTINCRATE     4        // accel delay rate up to PFASTINCMAXSPEED
 #define PFASTINCRATE_POGO  2      // rate when pogo stick is out
-// rates at which player slows down
-#define PFRICTION_RATE_INAIR      20      //8
-#define PFRICTION_RATE_ONGROUND   2      //2
-#define PFRICTION_RATE_WM         1    // on world map
+// rates at which player slows down while he is walking suddenly player does not
+// move him anymore
+#define PFRICTION_RATE_INAIR      0
+#define PFRICTION_RATE_ONGROUND   5
+#define PFRICTION_RATE_WM         32
 // rate at which player walking animation is shown
 #define PWALKANIMRATE             8
 
@@ -42,11 +40,12 @@ PA_FIRE, PA_STATUS
 // various states we go through when a level is completed
 // to do the walking out the exit door animation
 enum levelstate{
-	LEVEL_NOT_DONE,           // not completed
+	LEVEL_NOT_DONE,            // not completed
 	LEVEL_DONE_WALK,           // walking through exit door
-	LEVEL_DONE_WAIT,          // finished walk through door, wait a bit
+	LEVEL_DONE_WAIT,           // finished walk through door, wait a bit
 	LEVEL_DONE_FADEOUT,        // fading out
-	LEVEL_COMPLETE            // on to the next level!
+	LEVEL_COMPLETE,            // on to the next level!
+	LEVEL_TELEPORTER		   // Happens when Bonus Teleporter in Level was used
 };
 
 enum jumpstates{
@@ -55,6 +54,7 @@ enum jumpstates{
 	PPREPAREJUMP,                   // doing the jump animation
 	PJUMPUP,                        // jumping
 	PJUMPED,                        // Player has jumped
+	PJUMPLAND,                      // When player is in the middle of the air
 	PPREPAREPOGO,                   // "pogo compressed" anim frame
 	PPOGOING                        // pogoing
 };
@@ -160,10 +160,5 @@ enum jumpstates{
 
 // friction when player is pushed by yorp's, ball's, etc.
 #define PLAYPUSH_DECREASERATE   1
-
-// if player[].psupportingtile contains this value the player is actually
-// supported by an object and you should look in player[].psupportingobj
-// for it's index.
-#define PSUPPORTEDBYOBJECT         0
 
 #endif /* PLAYERDEFINES_H_ */

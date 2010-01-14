@@ -16,6 +16,7 @@
 #include "CSprite.h"
 #include "CBitmap.h"
 #include "CPalette.h"
+#include "effects/CEffects.h"
 #include <vector>
 
 #include "../CSingleton.h"
@@ -31,11 +32,12 @@ public:
 	CGfxEngine();
 	virtual ~CGfxEngine();
 	
-	CSprite *createEmptySprites(Uint16 num_sprites);
-	CBitmap *createEmptyBitmaps(Uint16 num_bmps);
-	CTilemap *createEmptyTilemap(stTile *pTileProperty, int numtiles);
-	CFont *createEmptyFontmap();
+	void createEmptySprites(Uint16 num_sprites);
+	void createEmptyBitmaps(Uint16 num_bmps);
+	void createEmptyTilemap(stTile *pTileProperty, int numtiles);
 	
+	void pushEffectPtr(CEffects *pEffect);
+
 	void freeBitmaps();
 	void freeSprites();
 	void freeTilemap();
@@ -45,19 +47,27 @@ public:
 	
 	void drawDialogBox(SDL_Surface *DialogSurface, int x1, int y1, int w, int h, Uint32 colour = 0xFFFFFF);
 	int getNumSprites() { return Sprite.size(); }
-	
+
+	CBitmap &getBitmap(Uint16 slot);
 	CBitmap *getBitmap(const std::string &name);
+
+	CEffects *Effect();
 	
-	void fade(Uint8 alpha);
+	CSprite &getSprite(Uint16 slot);
+	std::vector<CSprite> &getSpriteVec();
+	CFont &getFont();
 	
-	CFont *Font;
+	void process();
+	
 	CTilemap *Tilemap;
 	CPalette Palette;
-	std::vector<CSprite*> Sprite;
-	std::vector<CBitmap*> Bitmap;
 	
 private:
+	CFont Font;
 	SDL_Surface *m_fxsurface;
+	CEffects *mp_Effects;
+	std::vector<CBitmap> Bitmap;
+	std::vector<CSprite> Sprite;
 };
 
 #endif /* CGFXENGINE_H_ */

@@ -71,6 +71,37 @@ void CPatcher::patchMemory()
 					patchMemfromFile(m_datadirectory + "/" + patch_file_name,offset);
 				}
 			}
+			else if( strCaseStartsWith(line,"\%patch") )
+			{
+				std::string newbuf = line.substr(strlen("\%patch"));
+				TrimSpaces(newbuf);
+				size_t p = newbuf.find(' ');
+
+				if( strCaseStartsWith(newbuf,"0x") ){
+					long offset = 0;
+
+					sscanf(newbuf.c_str() ,"%lx", &offset);
+
+					newbuf = newbuf.substr(p);
+
+					TrimSpaces(newbuf);
+
+					if(strCaseStartsWith(newbuf,"\""))
+					{
+						std::string patchtext = newbuf.substr(1);
+						patchtext = patchtext.substr(0, patchtext.find("\""));
+						patchMemFromText(offset, patchtext);
+					}
+				}
+			}
+			else if( strCaseStartsWith(line,"\%level.hint") )
+			{
+				// You have a level hint. Very good, lets read it and patch!
+				std::string newbuf = line.substr(strlen("\%level.hint"));
+				TrimSpaces(newbuf);
+				PatchLevelhint(atoi(newbuf));
+			}
+
 		}
 		
 		if(!m_TextList.empty())
@@ -152,4 +183,59 @@ void CPatcher::patchMemfromFile(const std::string& patch_file_name, long offset)
 	}
 	
 	Patchfile.close();
+}
+
+// This is used for patching. I didn't think we could get it that small.
+void CPatcher::patchMemFromText(unsigned long offset, std::string &patchtext)
+{
+	memcpy( m_data+offset, patchtext.c_str(), patchtext.size());
+	return;
+}
+
+void CPatcher::PatchLevelhint(int level)
+{
+	unsigned char *p_patch;
+	unsigned long offset=0;
+	unsigned long end=0;
+
+	// Check for which level is it for.
+	if(m_episode == 1)
+	{
+		switch(level)
+		{
+		case 2:  offset = 0x15080; end = 0x15113; break;
+		case 6:  offset = 0x1511A; end = 0x151B3; break;
+		case 9:  offset = 0x151B4, end = 0x1524D; break;
+		case 10: offset = 0x1524E; end = 0x152E7; break;
+		case 11: offset = 0x152E8; end = 0x1523F; break;
+		case 12: offset = 0x15340; end = 0x153DA; break;
+		case 15: offset = 0x153DB; end = 0x1545E; break;
+		}
+	}
+	else if(m_episode == 2)
+	{
+		switch(level)
+		{
+		case 8:  offset = 0x19FCC; end = 0x1A08B; break;
+		case 12:  offset = 0x1A08B; end = 0x1A1A0; break;
+		}
+	}
+
+	p_patch = m_data + offset;
+
+	std::string buf;
+	do
+	{
+		m_TextList.pop_front();
+		buf = m_TextList.front();
+
+		memcpy(p_patch, buf.c_str(), buf.size());
+		p_patch += buf.size();
+		if( p_patch == m_data+end ) break;
+	} while( !m_TextList.empty() && !strCaseStartsWith(buf,"%") &&
+			 !buf.empty() && !strCaseStartsWith(buf,"\r") );
+
+	// Fill the rest with zeros, so the old won't be shown
+	if(end != offset)
+		memset( p_patch, 0, end-offset);
 }

@@ -7,7 +7,7 @@
 // the chunks of ice shot out by an ice cannon (ep1)
 const int ICECHUNK_SPEED = 60;
 const int ICECHUNK_STRAIGHT_SPEED = 80;
-const int ICECHUNK_WAIT_TIME = 38;
+const int ICECHUNK_WAIT_TIME = 19;
 
 unsigned int rnd(void);
 
@@ -38,22 +38,24 @@ void CObjectAI::icechunk_ai(CObject &object)
 			if (object.ai.icechunk.vector_x > 0)
 			{
 				m_Player[object.touchedBy].pdir = m_Player[object.touchedBy].pshowdir = RIGHT;
-				m_Player[object.touchedBy].pinertia_x = m_PhysicsSettings.player.max_x_speed;
+				m_Player[object.touchedBy].xinertia = m_PhysicsSettings.player.max_x_speed;
+				m_Player[object.touchedBy].bump(m_PhysicsSettings.player.max_x_speed/2, true);
 			}
 			else if (object.ai.icechunk.vector_x < 0)
 			{
 				m_Player[object.touchedBy].pdir = m_Player[object.touchedBy].pshowdir = LEFT;
-				m_Player[object.touchedBy].pinertia_x = -m_PhysicsSettings.player.max_x_speed;
+				m_Player[object.touchedBy].xinertia = -m_PhysicsSettings.player.max_x_speed;
+				m_Player[object.touchedBy].bump(-m_PhysicsSettings.player.max_x_speed/2, true);
 			}
 			else	// perfectly vertical ice cannons
 			{
 				const int UPDNCANNON_PUSHAMT = 16;
-				if (m_Player[object.touchedBy].pinertia_x < UPDNCANNON_PUSHAMT)
+				if (m_Player[object.touchedBy].xinertia < UPDNCANNON_PUSHAMT)
 				{
 					if (rnd()&1)
-						m_Player[object.touchedBy].pinertia_x = UPDNCANNON_PUSHAMT;
+						m_Player[object.touchedBy].xinertia = UPDNCANNON_PUSHAMT;
 					else
-						m_Player[object.touchedBy].pinertia_x = -UPDNCANNON_PUSHAMT;
+						m_Player[object.touchedBy].xinertia = -UPDNCANNON_PUSHAMT;
 				}
 			}
 		}
@@ -83,19 +85,19 @@ void CObjectAI::icechunk_ai(CObject &object)
 	}
 
 	// fly through the air
-	object.x += object.ai.icechunk.veloc_x;
-	object.y += object.ai.icechunk.veloc_y;
+	object.moveXDir(object.ai.icechunk.veloc_x);
+	object.moveYDir(object.ai.icechunk.veloc_y);
 }
 
 
 void CObjectAI::smash(CObject &object)
 {
-	CObject chunk;
+	CObject chunk(mp_Map);
 
 	if (object.onscreen)
 	{
-		g_pSound->playStereofromCoord(SOUND_CHUNKSMASH, PLAY_NOW, object.x);
-		chunk.spawn(object.x, object.y, OBJ_ICEBIT);
+		g_pSound->playStereofromCoord(SOUND_CHUNKSMASH, PLAY_NOW, object.getXPosition());
+		chunk.spawn(object.getXPosition(), object.getYPosition(), OBJ_ICEBIT, m_Episode);
 
 		// upleft
 		chunk.ai.icechunk.vector_x = -1;
@@ -128,7 +130,7 @@ void CObjectAI::smash(CObject &object)
 void CObjectAI::icebit_ai(CObject &object)
 {
 	if (object.needinit)
-	{  // first time initilization
+	{  // first time initialization
 		object.ai.icechunk.veloc_x = ICEBIT_SPEED * object.ai.icechunk.vector_x;
 		object.ai.icechunk.veloc_y = ICEBIT_SPEED * object.ai.icechunk.vector_y;
 		object.inhibitfall = true;
@@ -136,8 +138,8 @@ void CObjectAI::icebit_ai(CObject &object)
 		object.needinit = false;
 	}
 
-	object.x += object.ai.icechunk.veloc_x;
-	object.y += object.ai.icechunk.veloc_y;
+	object.moveXDir(object.ai.icechunk.veloc_x);
+	object.moveYDir(object.ai.icechunk.veloc_y);
 
 	if (!object.onscreen or !m_gunfiretimer)
 	{
@@ -153,10 +155,10 @@ void CObjectAI::icecannon_ai(CObject &object)
 	 object.sprite = BLANKSPRITE;
 	 object.inhibitfall = 1;
 	 
-	 if (!m_gunfiretimer)
+	 if (m_gunfiretimer == 0)
 	 {
-		 CObject chunk;
-		 chunk.spawn( object.x+512, object.y, OBJ_ICECHUNK );
+		 CObject chunk(mp_Map);
+		 chunk.spawn( object.getXPosition()+512, object.getYPosition(), OBJ_ICECHUNK, m_Episode);
 		 chunk.ai.icechunk.vector_x = object.ai.icechunk.vector_x;
 		 chunk.ai.icechunk.vector_y = object.ai.icechunk.vector_y;
 		 m_Objvect.push_back(chunk);

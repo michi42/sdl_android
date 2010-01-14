@@ -655,8 +655,11 @@ bool OpenGameFileR(std::ifstream& f, const std::string& path, std::ios_base::ope
 
 	std::string fullfn = GetFullFileName(path);
 	if(fullfn.size() != 0) {
-		f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
-		return f.is_open();
+		try {
+			f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
+			return f.is_open();
+		} catch(...) {}
+		return false;
 	}
 
 	return false;
@@ -668,8 +671,11 @@ bool OpenGameFileW(std::ofstream& f, const std::string& path, std::ios_base::ope
 
 	std::string fullfn = GetWriteFullFileName(path, true);
 	if(fullfn.size() != 0) {
-		f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
-		return f.is_open();
+		try {
+			f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
+			return f.is_open();
+		} catch(...) {}
+		return false;
 	}
 
 	return false;
@@ -709,7 +715,7 @@ bool FileListIncludesExact(const searchpathlist* l, const std::string& f) {
 
 std::string GetHomeDir() {
 #ifndef WIN32
-#ifdef WIZGP2X
+#if defined(WIZ) || defined(GP2X)
 	char* home = getenv("PWD");
 #else
 	char* home = getenv("HOME");

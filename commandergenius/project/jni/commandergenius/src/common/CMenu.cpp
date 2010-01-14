@@ -4,6 +4,7 @@
 #include "CMenu.h"
 #include "CObject.h"
 
+#include "../vorticon/infoscenes/CHighScores.h"
 #include "../vorticon/infoscenes/CStory.h"
 #include "../vorticon/infoscenes/CCredits.h"
 #include "../vorticon/infoscenes/COrderingInfo.h"
@@ -130,7 +131,7 @@ void CMenu::initMainMenu()
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 1, "New Game");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 2, "Load Game");
 		mp_Dialog->addObject(DLG_OBJ_DISABLED, 1, 3, "Save Game");
-		mp_Dialog->addObject(DLG_OBJ_DISABLED, 1, 4, "Highscores");
+		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 4, "High Scores");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 5, "Configure");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 6, "Back to Demo");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 7, "Choose Game");
@@ -144,7 +145,7 @@ void CMenu::initMainMenu()
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 1, "New Game");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 2, "Load Game");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT,  1, 3, "Save Game");
-		mp_Dialog->addObject(DLG_OBJ_DISABLED,  1, 4, "Highscores");
+		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT,  1, 4, "High Scores");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 5, "Configure");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT,  1, 6, "Back to Game");
 		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 7, "End Game");
@@ -160,7 +161,7 @@ void CMenu::initNumPlayersMenu()
 	mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 1, "1 Player");
 	for(i=2;i<=MAX_PLAYERS;i++)
 	{
-		mp_Dialog->addObject(DLG_OBJ_DISABLED, 1, i, itoa(i)+" Player");
+		mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, i, itoa(i)+" Player");
 	}
 }
 
@@ -208,7 +209,6 @@ void CMenu::initF1Menu()
 	mp_Dialog->addObject(DLG_OBJ_OPTION_TEXT, 1, 7, "Credits");
 	
 	// In the Help system let's hide all objects like Bitmaps, players, enemies, etc.
-	m_hideobjects = true;
 }
 
 void CMenu::initConfirmMenu()
@@ -223,12 +223,12 @@ void CMenu::initConfirmMenu()
 void CMenu::initSaveMenu()
 {
 	std::string text;
-	mp_Dialog = new CDialog(mp_MenuSurface, 0, 0, 22, 12, 'u');
+	mp_Dialog = new CDialog(mp_MenuSurface, 0, 0, 22, 22, 'u');
 	
 	// Load the state-file list
 	m_StateFileList = m_SavedGame.getSlotList();
 	
-	for(Uint32 i=1;i<=10;i++)
+	for(Uint32 i=1;i<=20;i++)
 	{
 		text = "";
 		if(i <= m_StateFileList.size())
@@ -248,7 +248,7 @@ void CMenu::initSaveMenu()
 /// Main Process method fo the menu
 void CMenu::process()
 {
-	// Information Mode
+	// Information Mode?
 	if(!mp_InfoScene) // show a normal menu
 	{
 		if( g_pInput->getPressedCommand(IC_HELP) )
@@ -318,9 +318,11 @@ void CMenu::process()
 		{
 			SAFE_DELETE(mp_InfoScene); // Destroy the InfoScene and go back to the menu!!!
 									   // Restore the old map, that was hidden behind the scene
+			g_pInput->flushAll();
 			g_pVideoDriver->setScrollBuffer(&m_Map.m_scrollx_buf, &m_Map.m_scrolly_buf);
 			m_Map.drawAll();
 			m_Map.m_animation_enabled = true;
+			m_hideobjects = false;
 		}
 	}
 }
@@ -368,8 +370,12 @@ void CMenu::processMainMenu()
 			cleanup();
 			init(SAVE);
 		}
-		if( m_selection == 3 ) // Highscores
+		if( m_selection == 3 ) // Show Highscores
 		{
+			m_hideobjects = true;
+			m_Map.m_animation_enabled = false;
+			mp_InfoScene = new CHighScores(m_Episode, m_GamePath, false);
+			m_selection = -1;
 		}
 		if( m_selection == 4 ) // Options
 		{
@@ -500,6 +506,7 @@ void CMenu::processF1Menu()
 {
 	if( m_selection != -1)
 	{
+		m_Map.m_animation_enabled = false;
 		// no cleanups here, because later we return back to that menu
 		switch(m_selection)
 		{
@@ -510,19 +517,23 @@ void CMenu::processF1Menu()
 				mp_InfoScene = new CHelp(m_GamePath, m_Episode, "Game");
 				break;
 			case 2:
-				m_Map.m_animation_enabled = false;
+				m_hideobjects = true;
 				mp_InfoScene = new CStory(m_GamePath, m_Episode);
 				break;
 			case 3:
+				m_hideobjects = true;
 				mp_InfoScene = new COrderingInfo(m_GamePath, m_Episode);
 				break;
 			case 4:
+				m_hideobjects = true;
 				mp_InfoScene = new CAbout(m_GamePath, m_Episode, "ID");
 				break;
 			case 5:
+				m_hideobjects = true;
 				mp_InfoScene = new CAbout(m_GamePath, m_Episode, "CG");
 				break;
 			case 6:
+				m_hideobjects = true;
 				mp_InfoScene = new CCredits(m_GamePath, m_Episode);
 				break;
 		}

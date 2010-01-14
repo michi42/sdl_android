@@ -13,29 +13,24 @@
 #include "../CLogFile.h"
 #include "../FindFile.h"
 
-#ifdef WIZGP2X
-#include "gp2x.h"
+#if defined(WIZ) || defined(GP2X)
+#include "sys/wizgp2x.h"
 #endif
 
 CInput::CInput() {
-#ifdef WIZGP2X
-	volume = 60-1;
+#if defined(WIZ) || defined(GP2X)
+    volume_direction = VOLUME_NOCHG;
+	volume = 60-VOLUME_CHANGE_RATE;
 	WIZ_AdjustVolume(VOLUME_UP);
 #endif
 	g_pLogFile->ftextOut("Starting the input driver...<br>");
-	for(int i=0 ; i<NUM_INPUTS ; i++)
-	{
-		resetControls(i+1);
-	}
+	memset(InputCommand, 0, NUM_INPUTS*NUMBER_OF_COMMANDS*sizeof(stInputCommand));
+
+	for(size_t c=1 ; c<= NUM_INPUTS ; c++)
+		resetControls(c);
 	memset(&Event,0,sizeof(Event));
 	loadControlconfig();
 	startJoyDriver();
-}
-
-CInput::~CInput() {
-	// Shutdown Joysticks
-	if(mp_Joystick)
-		SDL_JoystickClose(mp_Joystick);
 }
 
 void CInput::resetControls(int player) {
@@ -58,61 +53,61 @@ void CInput::resetControls(int player) {
 
 	for(i=0 ; i<NUMBER_OF_COMMANDS ; i++)
 	{
-		//for(int player=0 ; player<NUM_INPUTS ; player++)
-			InputCommand[player][i].active = false;
+		InputCommand[player][i].active = false;
 	}
 
+	// These are the default keyboard commands
 	i=player-1;
-		// These are the default keyboard commands
-		InputCommand[i][IC_LEFT].keysym = SDLK_LEFT;
-		InputCommand[i][IC_UP].keysym = SDLK_UP;
-		InputCommand[i][IC_RIGHT].keysym = SDLK_RIGHT;
-		InputCommand[i][IC_DOWN].keysym = SDLK_DOWN;
+	InputCommand[i][IC_LEFT].keysym = SDLK_LEFT;
+	InputCommand[i][IC_UP].keysym = SDLK_UP;
+	InputCommand[i][IC_RIGHT].keysym = SDLK_RIGHT;
+	InputCommand[i][IC_DOWN].keysym = SDLK_DOWN;
 
-		InputCommand[i][IC_JUMP].keysym = SDLK_LCTRL;
-		InputCommand[i][IC_POGO].keysym = SDLK_LALT;
-		InputCommand[i][IC_FIRE].keysym = SDLK_SPACE;
-		InputCommand[i][IC_STATUS].keysym = SDLK_RETURN;
+	InputCommand[i][IC_JUMP].keysym = SDLK_LCTRL;
+	InputCommand[i][IC_POGO].keysym = SDLK_LALT;
+	InputCommand[i][IC_FIRE].keysym = SDLK_SPACE;
+	InputCommand[i][IC_STATUS].keysym = SDLK_RETURN;
 
-		InputCommand[i][IC_HELP].keysym = SDLK_F1;
-		InputCommand[i][IC_QUIT].keysym = SDLK_ESCAPE;
+	InputCommand[i][IC_HELP].keysym = SDLK_F1;
+	InputCommand[i][IC_QUIT].keysym = SDLK_ESCAPE;
 
-		// And those are the default joystick handlings
-		InputCommand[i][IC_LEFT].joyeventtype = ETYPE_JOYAXIS;
-		InputCommand[i][IC_LEFT].joyaxis = 0;
-		InputCommand[i][IC_LEFT].joyvalue = -32767;
-		InputCommand[i][IC_LEFT].which = 0;
-		InputCommand[i][IC_UP].joyeventtype = ETYPE_JOYAXIS;
-		InputCommand[i][IC_UP].joyaxis = 1;
-		InputCommand[i][IC_UP].joyvalue = -32767;
-		InputCommand[i][IC_UP].which = 0;
-		InputCommand[i][IC_RIGHT].joyeventtype = ETYPE_JOYAXIS;
-		InputCommand[i][IC_RIGHT].joyaxis = 0;
-		InputCommand[i][IC_RIGHT].joyvalue = 32767;
-		InputCommand[i][IC_RIGHT].which = 0;
-		InputCommand[i][IC_DOWN].joyeventtype = ETYPE_JOYAXIS;
-		InputCommand[i][IC_DOWN].joyaxis = 1;
-		InputCommand[i][IC_DOWN].joyvalue = 32767;
-		InputCommand[i][IC_DOWN].which = 0;
+	// And those are the default joystick handlings
+	InputCommand[i][IC_LEFT].joyeventtype = ETYPE_JOYAXIS;
+	InputCommand[i][IC_LEFT].joyaxis = 0;
+	InputCommand[i][IC_LEFT].joyvalue = -32767;
+	InputCommand[i][IC_LEFT].which = 0;
+	InputCommand[i][IC_UP].joyeventtype = ETYPE_JOYAXIS;
+	InputCommand[i][IC_UP].joyaxis = 1;
+	InputCommand[i][IC_UP].joyvalue = -32767;
+	InputCommand[i][IC_UP].which = 0;
+	InputCommand[i][IC_RIGHT].joyeventtype = ETYPE_JOYAXIS;
+	InputCommand[i][IC_RIGHT].joyaxis = 0;
+	InputCommand[i][IC_RIGHT].joyvalue = 32767;
+	InputCommand[i][IC_RIGHT].which = 0;
+	InputCommand[i][IC_DOWN].joyeventtype = ETYPE_JOYAXIS;
+	InputCommand[i][IC_DOWN].joyaxis = 1;
+	InputCommand[i][IC_DOWN].joyvalue = 32767;
+	InputCommand[i][IC_DOWN].which = 0;
 
-		InputCommand[i][IC_JUMP].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_JUMP].joybutton = 0;
-		InputCommand[i][IC_JUMP].which = 0;
-		InputCommand[i][IC_POGO].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_POGO].joybutton = 1;
-		InputCommand[i][IC_POGO].which = 0;
-		InputCommand[i][IC_FIRE].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_FIRE].joybutton = 2;
-		InputCommand[i][IC_FIRE].which = 0;
-		InputCommand[i][IC_STATUS].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_STATUS].joybutton = 3;
-		InputCommand[i][IC_STATUS].which = 0;
-		InputCommand[i][IC_HELP].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_HELP].joybutton = 4;
-		InputCommand[i][IC_HELP].which = 0;
-		InputCommand[i][IC_QUIT].joyeventtype = ETYPE_JOYBUTTON;
-		InputCommand[i][IC_QUIT].joybutton = 5;
-		InputCommand[i][IC_QUIT].which = 0;
+	InputCommand[i][IC_JUMP].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_JUMP].joybutton = 0;
+	InputCommand[i][IC_JUMP].which = 0;
+	InputCommand[i][IC_POGO].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_POGO].joybutton = 1;
+	InputCommand[i][IC_POGO].which = 0;
+	InputCommand[i][IC_FIRE].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_FIRE].joybutton = 2;
+	InputCommand[i][IC_FIRE].which = 0;
+	InputCommand[i][IC_STATUS].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_STATUS].joybutton = 3;
+	InputCommand[i][IC_STATUS].which = 0;
+	InputCommand[i][IC_HELP].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_HELP].joybutton = 4;
+	InputCommand[i][IC_HELP].which = 0;
+	InputCommand[i][IC_QUIT].joyeventtype = ETYPE_JOYBUTTON;
+	InputCommand[i][IC_QUIT].joybutton = 5;
+	InputCommand[i][IC_QUIT].which = 0;
+	setTwoButtonFiring(i, false);
 }
 
 bool CInput::startJoyDriver()
@@ -138,8 +133,14 @@ bool CInput::startJoyDriver()
 			g_pLogFile->textOut("The names of the joysticks are:<br>");
 
 			for( i=0; i < SDL_NumJoysticks(); i++ )
-			{
 				g_pLogFile->ftextOut("    %s<br>", SDL_JoystickName(i));
+
+			SDL_JoystickEventState(SDL_ENABLE);
+
+			for(size_t c=0 ; c<joynum ; c++)
+			{
+				SDL_Joystick *p_Joystick = SDL_JoystickOpen(c);
+				mp_Joysticks.push_back(p_Joystick);
 			}
 		}
 		else
@@ -147,9 +148,6 @@ bool CInput::startJoyDriver()
 			g_pLogFile->ftextOut("No joysticks were found.<br>\n");
 		}
 	}
-
-	SDL_JoystickEventState(SDL_ENABLE);
-	mp_Joystick = SDL_JoystickOpen(0);
 
 	return 0;
 }
@@ -159,7 +157,10 @@ short CInput::loadControlconfig(void)
 	FILE *fp;
 	if((fp=OpenGameFile("controls.dat","rb")) != NULL)
 	{
-		if(fread(InputCommand, sizeof(stInputCommand),NUMBER_OF_COMMANDS*NUM_INPUTS, fp) == 0 )
+		bool ok=true;
+		ok &= (fread(InputCommand, sizeof(stInputCommand),NUMBER_OF_COMMANDS*NUM_INPUTS, fp) != 0);
+		fread(TwoButtonFiring, sizeof(bool),NUM_INPUTS, fp); // This one won't be checked, in order to conserve compatibility
+		if( !ok )
 		{
 			fclose(fp);
 			return 1;
@@ -176,6 +177,7 @@ short CInput::saveControlconfig(void)
 	if((fp=OpenGameFile("controls.dat","wb")) != NULL)
 	{
 		fwrite(InputCommand, sizeof(stInputCommand),NUMBER_OF_COMMANDS*NUM_INPUTS, fp);
+		fwrite(TwoButtonFiring, sizeof(bool),NUM_INPUTS, fp);
 		fclose(fp);
 		return 0;
 	}
@@ -212,7 +214,7 @@ bool CInput::readNewEvent(Uint8 device, int position)
 				return true;
 				break;
 			case SDL_JOYBUTTONDOWN:
-#ifdef WIZGP2X
+#if defined(WIZ) || defined(GP2X)
 				WIZ_EmuKeyboard( Event.jbutton.button, 1 );
 				return false;
 #else
@@ -236,6 +238,9 @@ bool CInput::readNewEvent(Uint8 device, int position)
 
 bool CInput::getExitEvent(void) {	return m_exit;	}
 void CInput::cancelExitEvent(void) { m_exit=false; }
+
+bool CInput::getTwoButtonFiring(int player) { return TwoButtonFiring[player]; }
+void CInput::setTwoButtonFiring(int player, bool value) { TwoButtonFiring[player]=value; }
 
 void CInput::pollEvents()
 {
@@ -306,7 +311,7 @@ void CInput::pollEvents()
 	}
 
 
-#ifdef WIZGP2X
+#if defined(WIZ) || defined(GP2X)
 	WIZ_AdjustVolume( volume_direction );
 #endif
 }
@@ -335,7 +340,7 @@ void CInput::processJoystickAxis(void)
 }
 void CInput::processJoystickButton(int value)
 {
-#ifdef WIZGP2X
+#if defined(WIZ) || defined(GP2X)
 	WIZ_EmuKeyboard( Event.jbutton.button, value );
 #else
 	for(int j=0 ; j<NUM_INPUTS ; j++)
@@ -363,18 +368,7 @@ void CInput::processKeys(int value)
 		for(int j=0 ; j<NUM_INPUTS ; j++)
 		{
 			if(InputCommand[j][i].keysym == Event.key.keysym.sym)
-			{
-				if(value)
-				{
-					InputCommand[j][i].active = true;
-					g_pLogFile->textOut(RED, itoa(i)+" is true.");
-				}
-				else
-				{
-					InputCommand[j][i].active = false;
-					g_pLogFile->textOut(RED, itoa(i)+" is false.");
-				}
-			}
+				InputCommand[j][i].active = (value) ? true : false;
 		}
 	}
 
@@ -413,7 +407,7 @@ void CInput::processKeys(int value)
 		case SDLK_BACKSLASH:immediate_keytable[KBACKSLASH]	= value;  break;
 		case SDLK_RIGHTBRACKET:immediate_keytable[KRIGHTBRACKET]	= value;  break;
 		case SDLK_BACKQUOTE:immediate_keytable[KBACKQUOTE]	= value;  break;
-			
+
 		case SDLK_a:immediate_keytable[KA]	= value;  break;
 		case SDLK_b:immediate_keytable[KB]	= value;  break;
 		case SDLK_c:immediate_keytable[KC]	= value;  break;
@@ -480,10 +474,10 @@ void CInput::processKeys(int value)
 		case SDLK_UNDERSCORE:immediate_keytable[KUNDERSCORE]	= value;  break;
 		case SDLK_MINUS:immediate_keytable[KMINUS]	= value;  break;
 		case SDLK_PLUS:immediate_keytable[KPLUS]	= value;  break;
-			
+
 		default: break;
 	}
-	
+
 	if(getHoldedKey(KSHIFT))
 	   {
 		   if(getPressedKey(KBACKQUOTE)) immediate_keytable[KTILDE] = value;
@@ -523,7 +517,6 @@ bool CInput::getPressedKey(int key)
 	if(immediate_keytable[key] && !last_immediate_keytable[key])
 	{
 		immediate_keytable[key] = false;
-		g_pLogFile->textOut(RED, itoa(key)+" is true.");
 		return true;
 	}
 
@@ -535,7 +528,7 @@ bool CInput::getPulsedKey(int key, int msec)
 	if(immediate_keytable[key])
 	{
 		bool value = true;
-		
+
 		if(m_cmdpulse % msec != 0)
 		{
 			value = false;
@@ -545,7 +538,7 @@ bool CInput::getPulsedKey(int key, int msec)
 	}
 	if(!immediate_keytable[key] && last_immediate_keytable[key])
 		m_cmdpulse = 0;
-	
+
 	return false;
 }
 
@@ -553,19 +546,17 @@ std::string CInput::getPressedTypingKey(void)
 {
 	int i;
 	std::string buf;
-	
+
 	for(i=KA ; i<=KZ ; i++)
 	{
 		if (getHoldedKey(KSHIFT) && getPressedKey(i))
 		{
 			buf = 'A' + i - KA;
-			g_pLogFile->textOut(RED, buf);
 			return buf;
 		}
 		else if(getPressedKey(i))
 		{
 			buf = 'a' + i - KA;
-			g_pLogFile->textOut(RED, buf);
 			return buf;
 		}
 	}
@@ -574,7 +565,6 @@ std::string CInput::getPressedTypingKey(void)
 		if(getPressedKey(i))
 		{
 			buf = 32 + i - KSPACE;
-			g_pLogFile->textOut(RED, buf);
 			return buf;
 		}
 	}
@@ -583,7 +573,6 @@ std::string CInput::getPressedTypingKey(void)
 		if(getPressedKey(i))
 		{
 			buf = '[' + i - KLEFTBRACKET;
-			g_pLogFile->textOut(RED, buf);
 			return buf;
 		}
 	}
@@ -592,7 +581,6 @@ std::string CInput::getPressedTypingKey(void)
 		if(getPressedKey(i))
 		{
 			buf = '{' + i - KLEFTBRACE;
-			g_pLogFile->textOut(RED, buf);
 			return buf;
 		}
 	}
@@ -602,25 +590,23 @@ std::string CInput::getPressedTypingKey(void)
 bool CInput::getPressedIsTypingKey(void)
 {
 	int i;
-	
+
 	if(getHoldedKey(KSHIFT))
-	   {
-		   return true;
-	   }
-	   else
-	   {
-	for(i=KSPACE ; i<=KAT ; i++)
+		return true;
+	else
 	{
-		if(getHoldedKey(i))
-			return true;
+		for(i=KSPACE ; i<=KAT ; i++)
+		{
+			if(getHoldedKey(i))
+				return true;
+		}
+		for(i=KLEFTBRACKET ; i<=KTILDE ; i++)
+		{
+			if(getHoldedKey(i))
+				return true;
+		}
+		return false;
 	}
-	for(i=KLEFTBRACKET ; i<=KTILDE ; i++)
-	{
-		if(getHoldedKey(i))
-			return true;
-	}
-	return false;
-	   }
 }
 
 bool CInput::getPressedAnyKey(void)
@@ -645,10 +631,7 @@ bool CInput::getHoldedCommand(int command)
 
 bool CInput::getHoldedCommand(int player, int command)
 {
-	if(InputCommand[player][command].active)
-		return true;
-	else
-		return false;
+	return InputCommand[player][command].active;
 }
 
 bool CInput::getPressedCommand(int command)
@@ -730,132 +713,13 @@ void CInput::flushKeys(void)
 }
 void CInput::flushAll(void){ flushKeys(); flushCommands(); }
 
-#ifdef WIZGP2X
-void CInput::WIZ_EmuKeyboard( int button, int value )
-{
-	SDL_Event fakeevent1, fakeevent2;
-
-	//printf( "Button %d Value %d\n", button, value );
-
-	if( value == 1 ) {
-		fakeevent1.type			= SDL_KEYDOWN;
-		fakeevent1.key.state		= SDL_PRESSED;
-		fakeevent1.key.type		= SDL_KEYDOWN;
-		fakeevent1.key.keysym.mod		= KMOD_NONE;
-
-		fakeevent2.type			= SDL_KEYDOWN;
-		fakeevent2.key.state		= SDL_PRESSED;
-		fakeevent2.key.type		= SDL_KEYDOWN;
-		fakeevent2.key.keysym.mod		= KMOD_NONE;
-	}
-	else {
-		fakeevent1.type			= SDL_KEYUP;
-		fakeevent1.key.state		= SDL_RELEASED;
-		fakeevent1.key.type		= SDL_KEYUP;
-		fakeevent1.key.keysym.mod		= KMOD_NONE;
-
-		fakeevent2.type			= SDL_KEYUP;
-		fakeevent2.key.state		= SDL_RELEASED;
-		fakeevent2.key.type		= SDL_KEYUP;
-		fakeevent2.key.keysym.mod		= KMOD_NONE;
-	}
-
-	//printf( "Button %d %d\n", button, value );
-	fakeevent1.key.keysym.sym = SDLK_UNKNOWN;
-	fakeevent2.key.keysym.sym = SDLK_UNKNOWN;
-	switch(button)
+CInput::~CInput() {
+	// Shutdown Joysticks
+	while(!mp_Joysticks.empty())
 	{
-		case GP2X_BUTTON_LEFT:
-			fakeevent1.key.keysym.sym = SDLK_LEFT;
-			break;
-		case GP2X_BUTTON_RIGHT:
-			fakeevent1.key.keysym.sym = SDLK_RIGHT;
-			break;
-		case GP2X_BUTTON_UP:
-			fakeevent1.key.keysym.sym = SDLK_UP;
-			break;
-		case GP2X_BUTTON_DOWN:
-			fakeevent1.key.keysym.sym = SDLK_DOWN;
-			break;
-		case GP2X_BUTTON_SELECT:
-			fakeevent1.key.keysym.sym = SDLK_RETURN;
-			break;
-		case GP2X_BUTTON_START:
-			fakeevent1.key.keysym.sym = SDLK_ESCAPE;
-			break;
-		case GP2X_BUTTON_L:
-			fakeevent1.key.keysym.sym = SDLK_q;
-			fakeevent2.key.keysym.sym = SDLK_1;
-			break;
-		case GP2X_BUTTON_R:
-			fakeevent1.key.keysym.sym = SDLK_t;
-			fakeevent2.key.keysym.sym = SDLK_2;
-			break;
-		case GP2X_BUTTON_A:
-			fakeevent1.key.keysym.sym = SDLK_LCTRL;
-			break;
-		case GP2X_BUTTON_B:
-			fakeevent1.key.keysym.sym = SDLK_LALT;
-			break;
-		case GP2X_BUTTON_X:
-			fakeevent1.key.keysym.sym = SDLK_SPACE;
-			break;
-		case GP2X_BUTTON_Y:
-			fakeevent1.key.keysym.sym = SDLK_y;
-			fakeevent2.key.keysym.sym = SDLK_F3;
-			break;
-		case GP2X_BUTTON_VOLUP:
-			if( value == 1)
-				volume_direction = VOLUME_UP;
-			else
-				volume_direction = VOLUME_NOCHG;
-			break;
-		case GP2X_BUTTON_VOLDOWN:
-			if( value == 1)
-				volume_direction = VOLUME_DOWN;
-			else
-				volume_direction = VOLUME_NOCHG;
-			break;
-	}
-
-	if( fakeevent1.key.keysym.sym != SDLK_UNKNOWN )
-	{
-		SDL_PushEvent (&fakeevent1);
-	}
-
-	if( fakeevent2.key.keysym.sym != SDLK_UNKNOWN )
-	{
-		SDL_PushEvent (&fakeevent2);
+		SDL_JoystickClose(mp_Joysticks.back());
+		mp_Joysticks.pop_back();
 	}
 }
 
-void CInput::WIZ_AdjustVolume( int direction )
-{
-	if( direction != VOLUME_NOCHG )
-	{
-		if( volume <= 10 )
-		{
-			if( direction == VOLUME_UP )   volume += VOLUME_CHANGE_RATE/2;
-			if( direction == VOLUME_DOWN ) volume -= VOLUME_CHANGE_RATE/2;
-		}
-		else
-		{
-			if( direction == VOLUME_UP )   volume += VOLUME_CHANGE_RATE;
-			if( direction == VOLUME_DOWN ) volume -= VOLUME_CHANGE_RATE;
-		}
 
-		if( volume < VOLUME_MIN ) volume = VOLUME_MIN;
-		if( volume > VOLUME_MAX ) volume = VOLUME_MAX;
-
-		printf( "Volume Change: %i\n", volume );
-
-		unsigned long soundDev = open("/dev/mixer", O_RDWR);
-		if(soundDev)
-		{
-			int vol = ((volume << 8) | volume);
-			ioctl(soundDev, SOUND_MIXER_WRITE_PCM, &vol);
-			close(soundDev);
-		}
-	}
-}
-#endif

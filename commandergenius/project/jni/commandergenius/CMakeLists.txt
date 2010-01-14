@@ -1,6 +1,5 @@
 # CMake file for development of Commander Genius (taken from OLX)
-# This CMake file is used under Linux normally. If someone wants 
-# to adapt windows, he is welcome, to do so.
+# This CMake file is used under Linux normally. 
 
 cmake_minimum_required(VERSION 2.4)
 IF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER 2.4)
@@ -19,7 +18,7 @@ ELSE(DEFINED BUILD_TYPE)
 	MESSAGE( "Available Builds are: WIN32, LINUX32, LINUX64, GP2X. WIZ, DINGOO For 64-bit Linux use 'cmake -DBUILD_TYPE=LINUX64'" )
 ENDIF(DEFINED BUILD_TYPE)
 
-OPTION(DEBUG "enable debug build" No)
+OPTION(DEBUG "enable debug build" Yes)
 OPTION(SDL "SDL support (will not work without)" Yes)
 OPTION(OPENGL "OpenGL support" Yes)
 OPTION(OGG "Ogg/Vorbis support" Yes)
@@ -42,13 +41,12 @@ IF (BUILD_TYPE STREQUAL GP2X OR BUILD_TYPE STREQUAL WIZ OR BUILD_TYPE STREQUAL D
 		SET(PREFIX /mythtv/media/devel/toolchains/open2x/gcc-4.1.1-glibc-2.3.6)
 		SET(CMAKE_C_COMPILER ${PREFIX}/bin/arm-open2x-linux-gcc)
 		SET(CMAKE_CXX_COMPILER ${PREFIX}/bin/arm-open2x-linux-g++)
-		ADD_DEFINITIONS(-DWIZGP2X)
 		ADD_DEFINITIONS(-DGP2X)
 	ELSEIF(BUILD_TYPE STREQUAL WIZ)
 		SET(PREFIX /mythtv/media/devel/toolchains/openwiz/arm-openwiz-linux-gnu)
 		SET(CMAKE_C_COMPILER ${PREFIX}/bin/arm-openwiz-linux-gnu-gcc)
 		SET(CMAKE_CXX_COMPILER ${PREFIX}/bin/arm-openwiz-linux-gnu-g++)
-		ADD_DEFINITIONS(-DWIZGP2X)
+		ADD_DEFINITIONS(-DWIZ)
 	ELSEIF(BUILD_TYPE STREQUAL DINGOO)
 		SET(PREFIX /opt/dingoo-uclibc-toolchain-06-17/usr)
 		SET(CMAKE_C_COMPILER ${PREFIX}/bin/mipsel-linux-uclibc-gcc)
@@ -97,26 +95,30 @@ INCLUDE_DIRECTORIES(optional-includes/generated)
 INCLUDE_DIRECTORIES(src)
 
 AUX_SOURCE_DIRECTORY(src ROOT_S)
-AUX_SOURCE_DIRECTORY(src/cinematics CINEMATICS_S)
 AUX_SOURCE_DIRECTORY(src/common COMMON_S)
 AUX_SOURCE_DIRECTORY(src/common/Menu MENU_S)
 AUX_SOURCE_DIRECTORY(src/dialog DIALOG_S)
 AUX_SOURCE_DIRECTORY(src/fileio FILEIO_S)
 AUX_SOURCE_DIRECTORY(src/graphics GRAPHICS_S)
+AUX_SOURCE_DIRECTORY(src/graphics/effects EFFECTS_S)
 AUX_SOURCE_DIRECTORY(src/hqp HQP_S)
 #AUX_SOURCE_DIRECTORY(src/include HQP_S)
 AUX_SOURCE_DIRECTORY(src/scale2x SCALE2X_S)
 AUX_SOURCE_DIRECTORY(src/sdl SDL_S)
+AUX_SOURCE_DIRECTORY(src/sdl/sys SDLSYS_S)
 AUX_SOURCE_DIRECTORY(src/sdl/sound SDLSOUND_S)
 AUX_SOURCE_DIRECTORY(src/sdl/video SDLVIDEO_S)
 AUX_SOURCE_DIRECTORY(src/vorbis VORBIS_S)
 AUX_SOURCE_DIRECTORY(src/vorticon VORTICON_S)
+AUX_SOURCE_DIRECTORY(src/galaxy GALAXY_S)
 AUX_SOURCE_DIRECTORY(src/vorticon/ai AI_S)
 AUX_SOURCE_DIRECTORY(src/vorticon/finale FINALE_S)
 AUX_SOURCE_DIRECTORY(src/vorticon/playgame PLAYGAME_S)
 AUX_SOURCE_DIRECTORY(src/vorticon/infoscenes INFOSCENES_S)
 
-SET(ALL_SRCS ${ROOT_S} ${AI_S} ${FINALE_S} ${PLAYGAME_S} ${INFOSCENES_S} ${FILEIO_S} ${HQP_S} ${SCALE2X_S} ${SDL_S} ${SDLSOUND_S} ${SDLVIDEO_S} ${VORTICON_S} ${CINEMATICS_S} ${DIALOG_S} ${COMMON_S} ${MENU_S} ${GRAPHICS_S})
+SET(ALL_SRCS ${ROOT_S} ${AI_S} ${FINALE_S} ${PLAYGAME_S} ${INFOSCENES_S} 
+	${FILEIO_S} ${HQP_S} ${SCALE2X_S} ${SDL_S} ${SDLSYS_S} ${SDLSOUND_S} ${SDLVIDEO_S} 
+	${VORTICON_S} ${GALAXY_S} ${DIALOG_S} ${COMMON_S} ${MENU_S} ${GRAPHICS_S} ${EFFECTS_S})
 
 IF(UNIX)
 # Compilation under Linux
@@ -149,7 +151,6 @@ IF(UNIX)
 	ELSE(BUILD_TYPE STREQUAL WIN32)
 	ENDIF(BUILD_TYPE STREQUAL WIN32)
 
-
 	SET(OPTIMIZE_COMPILER_FLAG -O3)
 ENDIF(UNIX)
 
@@ -157,7 +158,7 @@ ENDIF(UNIX)
 # Extra Flags for the compilation
 IF (OGG)
 	INCLUDE_DIRECTORIES(/usr/include/vorbis)
-	ADD_DEFINITIONS(-DBUILD_WITH_OGG)
+	ADD_DEFINITIONS(-DOGG)
 	SET(ALL_SRCS ${ALL_SRCS} ${VORBIS_S})
 ENDIF (OGG)
 
@@ -198,19 +199,17 @@ IF(SDL)
 		TARGET_LINK_LIBRARIES(commandergenius opengl32)
 	ELSEIF(BUILD_TYPE STREQUAL LINUX32)
 		IF(64BIT)
-			TARGET_LINK_LIBRARIES(commandergenius SDL)
+			TARGET_LINK_LIBRARIES(commandergenius SDL-1.2)
 		ELSE(64BIT)
 			TARGET_LINK_LIBRARIES(commandergenius SDL)
 		ENDIF(64BIT)
 	ENDIF(BUILD_TYPE STREQUAL WIN32)
 ENDIF(SDL)
 
-TARGET_LINK_LIBRARIES(commandergenius SDL)
-
-IF(NOT LINUX64)
-	SET_TARGET_PROPERTIES(commandergenius PROPERTIES LINK_FLAGS -L/usr/lib32)
-	SET_TARGET_PROPERTIES(commandergenius PROPERTIES LINK_FLAGS -m32)
-ENDIF(NOT LINUX64)
+#IF(NOT LINUX64)
+#	SET_TARGET_PROPERTIES(commandergenius PROPERTIES LINK_FLAGS -L/usr/lib32)
+#	SET_TARGET_PROPERTIES(commandergenius PROPERTIES LINK_FLAGS -m32)
+#ENDIF(NOT LINUX64)
 
 IF(BUILD_TYPE STREQUAL WIN32)
 	SET_TARGET_PROPERTIES(commandergenius PROPERTIES LINK_FLAGS -L/usr/i586-mingw32msvc/lib)

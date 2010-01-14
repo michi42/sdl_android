@@ -13,6 +13,7 @@
 #include "../funcdefs.h"
 #include "../keen.h"
 #include "../FindFile.h"
+#include "../lz.h"
 #include <SDL.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,39 +49,48 @@ CEGALatch::~CEGALatch() {
 bool CEGALatch::loadHead( char *data, short m_episode )
 {
 	Uint16 height, width;
-	char name[9];
 
 	data += m_bitmaptablelocation;
 
+	g_pGfxEngine->freeBitmaps();
 	g_pGfxEngine->createEmptyBitmaps(m_bitmaps);
 	for(int i=0 ; i<m_bitmaps ; i++)
 	{
+		std::string name;
+		//char name[9];
+		CBitmap &Bitmap = g_pGfxEngine->getBitmap(i);
 		memcpy(&width,data+16*i,2);
 		memcpy(&height,data+16*i+2,2);
-		memcpy(name,data+16*i+8,8);
+		name = (const char*)(data+16*i+8);
 		width *= 8; // The width is always divided by eight when read
 
-		name[8] = 0; // Ensure null-terminated!
-		if( name[0] != 0 ) g_pGfxEngine->Bitmap[i]->setName( name );
-		else {
-			if (m_episode == 1) {
+		name = name.substr(0,8); // Cut the rest of data down, if junk detected in the exe file
+		if( name != "" ) Bitmap.setName( name );
+		else
+		{
+			if (m_episode == 1)
+			{
 				const std::string default_names[] = { "TITLE", "IDLOGO", "F1HELP", "HIGHSCOR",
 					"NAME", "SCORE", "PARTS", "GAMEOVER", "AN", "PRESENT", "APOGEE", "KEENSHIP", "WINDON",
 					"WINDOFF", "ONEMOMEN", "OFAN", "PRODUCT", "IDSOFT" }; // in case the names are empty
-				g_pGfxEngine->Bitmap[i]->setName( default_names[i] );
-			}else if (m_episode == 2) {
+				Bitmap.setName( default_names[i] );
+			}
+			else if (m_episode == 2)
+			{
 				const std::string default_names[] = { "TITLE", "IDLOGO", "F1HELP", "HIGHSCOR",
 					"NAME", "SCORE", "SAVED", "GAMEOVER", "AN", "PRESENT", "APOGEE", "KEENSHIP", "WINDON",
 					"WINDOFF", "ONEMOMEN", "OFAN", "PRODUCT", "IDSOFT" }; // in case the names are empty
-				g_pGfxEngine->Bitmap[i]->setName( default_names[i] );
-			}else if (m_episode == 3) {
+				Bitmap.setName( default_names[i] );
+			}
+			else if (m_episode == 3)
+			{
 				const std::string default_names[] = { "TITLE", "IDLOGO", "F1HELP", "HIGHSCOR",
 					"NAME", "SCORE", "GAMEOVER", "AN", "PRESENT", "APOGEE", "ONEMOMEN", "OFAN", "PRODUCT", "IDSOFT" }; // in case the names are empty
-				g_pGfxEngine->Bitmap[i]->setName( default_names[i] );
+				Bitmap.setName( default_names[i] );
 			}
 		}
 
-		g_pGfxEngine->Bitmap[i]->setDimensions(width,height);
+		Bitmap.setDimensions(width,height);
 	}
 	return true;
 }
@@ -89,7 +99,6 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 {
 	std::string filename;
 	char *RawData;
-    CBitmap *bitmap;
     Uint16 width, height;
     SDL_Surface *sfc;
 
@@ -146,9 +155,10 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 								  0);
 	// Load these graphics into the CFont Class of CGfxEngine
 	char *offset;
-	CFont *Font = g_pGfxEngine->createEmptyFontmap();
-	Font->CreateSurface( g_pGfxEngine->Palette.m_Palette, SDL_SWSURFACE );
-	sfc = Font->getSDLSurface();
+	CFont &Font = g_pGfxEngine->getFont();
+	Font.DestroySurface();
+	Font.CreateSurface( g_pGfxEngine->Palette.m_Palette, SDL_SWSURFACE );
+	sfc = Font.getSDLSurface();
 	if(SDL_MUSTLOCK(sfc)) SDL_LockSurface(sfc);
 	char *pixel = (char*) sfc->pixels;
 	int c=0;
@@ -181,17 +191,19 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 	if(path == "") filename = "games/fonts.bmp";
 	else filename = path + "/fonts.bmp";
 
-	Font->loadHiColourFont(filename);
-	Font->generateGlowFonts();
-	Font->generateInverseFonts();
-	Font->generateDisabledFonts();
-	Font->optimizeSurface();
+	Font.optimizeSurface();
+	if(!Font.loadHiColourFont(filename)) // This is loaded again in order to get hi-colour fonts
+	{
+		filename = "data/gfx/fonts.bmp";
+		if(Font.loadHiColourFont(filename))
+			g_pLogFile->textOut(GREEN, "VGA Fontmap for the game has been loaded successfully!");
+	}
+	else g_pLogFile->textOut(GREEN, "VGA Fontmap for the game has been loaded successfully!");
 
-	if(Font->loadHiColourFont(filename)) // This is loaded again in order to get hi-colour fonts
-		g_pLogFile->textOut(GREEN, "VGA Fontmap for the game has been loaded successfully!");
-	// the function that are loaded before the first optimizeSurface are are only valid in 8-bit mode.
-	Font->generateSpecialTwirls();
-	Font->optimizeSurface();
+	Font.generateSpecialTwirls();
+	Font.generateGlowFonts();
+	Font.generateInverseFonts();
+	Font.generateDisabledFonts();
 
 	delete Planes;
 
@@ -234,9 +246,15 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 	if(SDL_MUSTLOCK(sfc))	SDL_UnlockSurface(sfc);
 
 	// Load Hi-Colour, VGA, SVGA Tiles into the tilemap
-	if(path == "") filename = "games/ck" + itoa(episode) + "tiles.bmp";
+	if(path == "") filename = "ck" + itoa(episode) + "tiles.bmp";
 	else filename = path + "/ck" + itoa(episode) + "tiles.bmp";
-	if(Tilemap->loadHiresTile(filename))
+	if(!Tilemap->loadHiresTile(filename))
+	{
+		filename = "data/gfx/ck" + itoa(episode) + "tiles.bmp";
+		if(Tilemap->loadHiresTile(filename))
+			g_pLogFile->textOut(GREEN, "VGA Bitmap for Tileset has been loaded successfully!");
+	}
+	else
 		g_pLogFile->textOut(GREEN, "VGA Bitmap for Tileset has been loaded successfully!");
 
 	// Adapt the tilemap to the display, so they are faster blit
@@ -251,7 +269,6 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 	/// Load Bitmaps ///
 	////////////////////
 
-	// set up the getbit() function
 	Planes = new CPlanes(plane1 + m_bitmaplocation,
 						 plane2 + m_bitmaplocation,
 						 plane3 + m_bitmaplocation,
@@ -265,22 +282,22 @@ bool CEGALatch::loadData( std::string &path, short episode, int version, unsigne
 	// In case there is a strange mod or defect episode, put some names to them!
 	for(int b=0 ; b<m_bitmaps ; b++)
 	{
-		bitmap = g_pGfxEngine->Bitmap[b];
-		bitmap->createSurface(g_pVideoDriver->getScrollSurface()->flags, g_pGfxEngine->Palette.m_Palette);
+	    CBitmap &bitmap = g_pGfxEngine->getBitmap(b);
+		bitmap.createSurface(g_pVideoDriver->getScrollSurface()->flags, g_pGfxEngine->Palette.m_Palette);
 	}
 
 	for(int p=0 ; p<4 ; p++)
 	{
 		for(int b=0 ; b<m_bitmaps ; b++)
 		{
+		    CBitmap &bitmap = g_pGfxEngine->getBitmap(b);
 			// this points to the location that we're currently
 			// decoding bitmap data to
-			bitmap = g_pGfxEngine->Bitmap[b];
 
-			sfc= bitmap->getSDLSurface();
+			sfc= bitmap.getSDLSurface();
 			if(SDL_MUSTLOCK(sfc)) SDL_LockSurface(sfc);
 			Uint8* pixel = (Uint8*) sfc->pixels;
-			width = bitmap->getWidth(); height = bitmap->getHeight();
+			width = bitmap.getWidth(); height = bitmap.getHeight();
 			// Now read the raw data
 			for(int y=0 ; y<height ; y++)
 			{

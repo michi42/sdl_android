@@ -6,6 +6,7 @@
  */
 
 #include "CExeFile.h"
+#include "Cunlzexe.h"
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -13,169 +14,92 @@
 #include "../FindFile.h"
 #include "../CLogFile.h"
 
-using namespace std;
+#define SAFE_DELETE_ARRAY(x) if(x) { delete[] x; x=NULL; }
 
 CExeFile::CExeFile(int episode, const std::string& datadirectory) {
 	m_episode = episode;
 	m_datadirectory = datadirectory;
 	if( m_datadirectory != "") if(*(m_datadirectory.end()-1) != '/') m_datadirectory += "/";
+	m_rawdata = NULL;
 	m_data = NULL;
+	m_headerdata = NULL;
 
 	crc32_init();
 }
 
 CExeFile::~CExeFile() {
-	if(m_data) delete[] m_data; m_data = NULL;
+	SAFE_DELETE_ARRAY(m_data);
 }
 
 bool CExeFile::readData()
 {
 	std::string filename =  m_datadirectory + "keen" + itoa(m_episode) + ".exe";
 
-	std::ifstream File; OpenGameFileR(File, filename, ios::binary);
+	std::ifstream File; OpenGameFileR(File, filename, std::ios::binary);
 
 	if(!File)
 	{
-		g_pLogFile->textOut(RED,"Error the executable \"" + filename + "\" is missing!");
-		return false;
+		// try another filename (Used in Episode 4-6)
+		std::string filename =  m_datadirectory + "keen" + itoa(m_episode) + "e.exe";
+		OpenGameFileR(File, filename, std::ios::binary);
+		if(!File)
+		{
+			g_pLogFile->textOut(RED,"Error the executable \"" + filename + "\" is missing!");
+			return false;
+		}
 	}
 
-	File.seekg(0,ios::end);
+	File.seekg(0,std::ios::end);
 	m_datasize = File.tellg();
-	File.seekg(0,ios::beg);
+	File.seekg(0,std::ios::beg);
 
-	unsigned char * m_data_temp = new unsigned char[m_datasize];
+	SAFE_DELETE_ARRAY(m_data);
+	unsigned char* m_data_temp = new unsigned char[m_datasize];
 	File.read((char*)m_data_temp, m_datasize);
 
 	File.close();
 
-	vector<unsigned char> decdata;
+	Cunlzexe UnLZEXE;
 
-	if(unlzexe(m_data_temp, &decdata))
+	std::vector<unsigned char> decdata;
+	unsigned long Headersize = 0;
+	if(UnLZEXE.decompress(m_data_temp, decdata))
 	{
 		m_datasize = decdata.size();
 		m_data = new unsigned char[m_datasize];
+		Headersize = UnLZEXE.HeaderSize();
 		memcpy(m_data, &decdata[0], m_datasize);
 	}
 	else
 	{
-		m_datasize -= 512; // if already decompressed subtract the header
 		m_data = new unsigned char[m_datasize];
-		memcpy(m_data, m_data_temp+512,m_datasize);
+		memcpy(m_data, m_data_temp,m_datasize);
 	}
+
+	m_headerdata = m_data;
+	Headersize = UnLZEXE.HeaderSize();
+	if(!Headersize) Headersize = 512;
+	m_rawdata = m_data + Headersize;
+
 	delete[] m_data_temp;
 
 	m_crc = getcrc32( m_data, m_datasize );
 
-	// TODO: Why is printf used here! Please change that to g_pLogFile->Textout
-    printf( "EXE processed with size of %d and crc of %X\n", m_datasize, m_crc );
+	g_pLogFile->ftextOut( "EXE processed with size of %d and crc of %X\n", m_datasize, m_crc );
 
 	return true;
-}
-
-int CExeFile::get_bit(int *p_bit_count, unsigned char *fin, int *posin)
-{
-	static unsigned short bits = 0;
-	int bit = bits & 1;
-	(*p_bit_count)--;
-
-	if ((*p_bit_count) <= 0)
-	{
-		unsigned short a,b;
-		a = (unsigned char) fin[(*posin)++];
-		b = (unsigned char) fin[(*posin)++] << 8;
-		bits = a | b;
-
-		if ((*p_bit_count) == -1) /* special case for first bit word */
-		{
-			bit = bits & 1;
-			bits >>= 1;
-		}
-
-		(*p_bit_count) += 16;
-	}
-	else
-		bits >>= 1;
-
-	return bit;
-}
-
-// return how much was unpacked or zero if nothing was unpacked
-int CExeFile::unlzexe(unsigned char *fin, vector<unsigned char> *outbuffer)
-{
-	short offset=0;
-	int repeat;
-	int posin = 0;	// position of input
-
-	int pos = 0;
-	int bit_count = 0;
-
-	/* skip header */
-	posin = 32;
-
-	while (1)
-	{
-		if (get_bit(&bit_count, fin, &posin))
-		{
-			outbuffer->push_back(fin[posin]);
-			pos++;
-			posin++;
-		}
-		else
-		{
-			if (get_bit(&bit_count, fin, &posin))
-			{
-				unsigned char tmp[2];
-				memcpy(tmp,fin+posin,2);
-				posin+=2;
-				repeat = (tmp[1] & 0x07);
-
-				offset = ((tmp[1] & ~0x07) << 5) | tmp[0] | 0xE000;
-
-				if (repeat == 0)
-				{
-					repeat = fin[posin++];
-
-					if (repeat == 0)
-						break;
-					else if (repeat == 1)
-						continue;
-					else
-						repeat++;
-				}
-				else
-					repeat += 2;
-			}
-			else
-			{
-				repeat = get_bit(&bit_count, fin, &posin) << 1;
-				repeat |= get_bit(&bit_count, fin, &posin);
-				repeat += 2;
-				offset = fin[posin++] | 0xFF00;
-			}
-
-			while (repeat > 0)
-			{
-				outbuffer->push_back(outbuffer->at(pos + offset));
-				pos++;
-				repeat--;
-			}
-		}
-	}
-
-	return pos;
 }
 
 int CExeFile::getEXEVersion()
 {
     switch (m_datasize)
     {
-		case 99762:
+		case 100274:
 			if(m_episode != 1)
 				return -1;
 			else
 				return 110;
-		case 99972:
+		case 100484:
 			if(m_episode != 1)
 				return -1;
 			else
@@ -186,27 +110,33 @@ int CExeFile::getEXEVersion()
 			else
 				return 134;
 
-		case 118114:
+		case 118626:
 			if(m_episode != 2)
 				return -1;
 			else
 				return 100;
-		case 118160:
+		case 118672:
 			if(m_episode != 2)
 				return -1;
 			else
 				return 131;
 
-		case 127086:
+		case 127598:
 			if(m_episode != 3)
 				return -1;
 			else
 				return 100;
-		case 127104:
+		case 127616:
 			if(m_episode != 3)
 				return -1;
 			else
 				return 131;
+
+		case 263488:
+			if(m_episode != 4)
+				return -1;
+			else
+				return 140;
 
 		default: return -2;
     }
@@ -266,9 +196,47 @@ int CExeFile::getEXECrc()
 				else
 					return 1;
 		}
+        case 4:
+        {
+        	// TODO: CRC-Flags for Episode 4 must be implemented here!
+        	return 1;
+        }
 		default: return -2;
     }
 }
 
-unsigned char* CExeFile::getData()
-{	return m_data;	}
+const unsigned short EXEMZ = 0x5A4D;
+const unsigned short EXEZM = 0x4D5A;
+
+/* SM: Modified so we can give a value of "headerlen" we're expecting... this way
+ * we might support any exe file in the future */
+bool CExeFile::readExeImageSize(unsigned char *p_data_start, unsigned long *imglen, unsigned long *headerlen)
+{
+	EXE_HEADER head;
+
+	/* Read the header from the file if we can */
+	//if(fread(&head, sizeof(EXE_HEADER), 1, f) == 1)
+	memcpy(&head, p_data_start,sizeof(EXE_HEADER));
+	/* Check that the 'MZ' id is present */
+	if(head.mzid == EXEMZ || head.mzid == EXEZM)
+	{
+		/* Calculate the image size */
+		if (!*headerlen) {
+			*imglen = ((unsigned long)head.image_h - 1) * 512L + head.image_l - (unsigned long)head.header_size * 16L;
+			*headerlen = (unsigned long)head.header_size * 16L;
+		}
+		else *imglen = ((unsigned long)head.image_h - 1) * 512L + head.image_l - *headerlen;
+		return true;
+	}
+
+	// If we got here, something failed
+	*imglen = *headerlen = 0;
+	return false;
+}
+
+unsigned char* CExeFile::getRawData()
+{	return m_rawdata;	}
+
+unsigned char* CExeFile::getHeaderData()
+{	return m_headerdata;	}
+

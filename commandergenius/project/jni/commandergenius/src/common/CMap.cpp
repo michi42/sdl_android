@@ -13,23 +13,22 @@
 #include "../CLogFile.h"
 #include "../include/fileio/rle.h"
 #include "../sdl/CVideoDriver.h"
+#include "../graphics/CGfxEngine.h"
 
 std::string formatPathString(const std::string& path);
 
-CMap::CMap(SDL_Surface *p_scrollsurface, CTilemap *p_Tilemap):
+CMap::CMap():
 mp_data(NULL),
 m_width(0), m_height(0),
 m_worldmap(false),
 m_animation_enabled(true),
-mp_tiles(p_Tilemap->mp_tiles),
-mp_scrollsurface(p_scrollsurface),
-mp_Tilemap(p_Tilemap),
+mp_tiles(NULL),
+mp_Tilemap(NULL),
 m_animtiletimer(0),
 m_curanimtileframe(0)
 {
 	memset( m_AnimTileInUse, 0, sizeof(m_AnimTileInUse));
 	memset( m_animtiles, 0, sizeof(m_animtiles));
-
 	resetScrolls();
 	memset(m_objectlayer, 0, sizeof(m_objectlayer));
 }
@@ -37,6 +36,13 @@ m_curanimtileframe(0)
 ////////////////////////////
 // Initialization Routine //
 ////////////////////////////
+
+void CMap::setTileMap( CTilemap *pTilemap ){
+	mp_Tilemap = pTilemap;
+	mp_tiles = mp_Tilemap->mp_tiles;
+}
+void CMap::setScrollSurface( SDL_Surface *surface )
+{  mp_scrollsurface = surface; }
 
 void CMap::resetScrolls()
 {
@@ -55,7 +61,10 @@ void CMap::resetScrolls()
 // returns the tile which is set at the given coordinates
 Uint16 CMap::at(Uint16 x, Uint16 y)
 {
-	return mp_data[y*m_width + x];
+	if(x < m_width && y < m_height )
+		return mp_data[y*m_width + x];
+	else
+		return 0;
 }
 
 //////////////////////////
@@ -199,7 +208,7 @@ void CMap::scrollLeft(void)
 	
 	if (m_scrollpix==0)
 	{  // need to draw a new stripe
-		m_mapx--;
+		if(m_mapx>0) m_mapx--;
 		if (m_mapxstripepos == 0)
 		{
 			m_mapxstripepos = (512 - 16);
@@ -237,7 +246,7 @@ void CMap::scrollUp(void)
 	
 	if (m_scrollpixy==0)
 	{  // need to draw a new stripe
-		m_mapy--;
+		if(m_mapy>0) m_mapy--;
 		if (m_mapystripepos == 0)
 		{
 			m_mapystripepos = (512 - 16);
@@ -337,6 +346,30 @@ void CMap::deAnimate(int x, int y)
 			return;
 		}
     }
+}
+
+// Draw an animated tile. If it's not animated draw it anyway
+void CMap::drawAnimatedTile(SDL_Surface *dst, Uint16 mx, Uint16 my, Uint16 tile)
+{
+	stTile &TileProperty = g_pGfxEngine->Tilemap->mp_tiles[tile];
+
+	if(TileProperty.animation <= 1)
+	{ // Unanimated tiles
+		mp_Tilemap->drawTile( dst, mx, my, tile );
+	}
+	else
+	{ // animate animated tiles
+		for(int i=1;i<MAX_ANIMTILES-1;i++)
+		{
+			if ( m_animtiles[i].slotinuse && m_animtiles[i].baseframe == tile )
+			{
+				mp_Tilemap->drawTile( dst, mx, my,
+						m_animtiles[i].baseframe+
+						((m_animtiles[i].offset+m_curanimtileframe)%
+								mp_tiles[m_animtiles[i].baseframe].animation) );
+			}
+		}
+	}
 }
 
 void CMap::animateAllTiles()
