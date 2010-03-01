@@ -434,7 +434,7 @@ public:
 		virtual bool isValid() { return it != filelist.filelist.end(); }
 		virtual void next() { ++it; }
 		virtual bool operator==(const ::Iterator<FileList::value_type>& other) const {
-			const Iterator* o = reinterpret_cast<const Iterator*> (&other);
+			const Iterator* o = dynamic_cast<const Iterator*> (&other);
 			return o && it == o->it;
 		}
 		virtual FileList::value_type get() { return *it; }

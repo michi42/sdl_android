@@ -34,7 +34,7 @@ CSound::CSound() {
 	m_soundslot = NULL;
 	m_MixedForm = NULL;
 	AudioSpec.channels = 2; // Stereo Sound
-#if defined(WIZ) || defined(GP2X) || defined(ANDROID)
+#if defined(WIZ) || defined(GP2X)
 	AudioSpec.format = AUDIO_S16; // 16-bit sound
 #else
 	AudioSpec.format = AUDIO_U8; // 8-bit sound
@@ -70,11 +70,7 @@ bool CSound::init(void)
 	AudioSpec.userdata = NULL;
 
 	/* Initialize variables */
-	if( 
-#ifdef ANDROID
-		true || // Disable sound for now, cause it makes game deadlock for no reason
-#endif
-		SDL_OpenAudio(desired, obtained) < 0 )
+	if( SDL_OpenAudio(desired, obtained) < 0 )
 	{
 		g_pLogFile->ftextOut("SoundDrv_Start(): Couldn't open audio: %s<br>", SDL_GetError());
 		g_pLogFile->ftextOut("Sound will be disabled.<br>");

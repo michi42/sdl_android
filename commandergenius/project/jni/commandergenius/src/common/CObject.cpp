@@ -9,7 +9,6 @@
 #include "../CLogFile.h"
 #include "../vorticon/spritedefines.h"
 #include "../sdl/CVideoDriver.h"
-#include "../graphics/CGfxEngine.h"
 #include "../keen.h"
 #include <string.h>
 
@@ -123,6 +122,7 @@ void CObject::setupObjectType(int Episode)
 	case OBJ_JACK: sprite = OBJ_JACK_DEFSPRITE; break;
 	case OBJ_NESSIE: sprite = OBJ_NESSIE_DEFSPRITE; break;
 	case OBJ_AUTORAY_V: sprite = RAY_VERT_EP3; break;
+	case OBJ_SNDWAVE: sprite = OBJ_SNDWAVE_DEFSPRITE; break;
 
 	// Common Elements and some are Episode dependent
 	case OBJ_RAY:
@@ -199,7 +199,11 @@ void CObject::setScrPos( int px, int py )
 // This used for objects that only can trigger, when it's really worth to do so.
 bool CObject::calcVisibility( int player_x, int player_y )
 {
+	// Platform are always active
 	if(m_type == OBJ_PLATFORM || m_type == OBJ_PLATVERT) return true;
+
+	// Also  Bullets
+	if(m_type == OBJ_SNDWAVE || m_type == OBJ_RAY || m_type == OBJ_FIREBALL) return true;
 
 	// check in x
 	Uint32 left = ((player_x-(VISIBILITY<<CSF))<0) ? 0 : player_x-(VISIBILITY<<CSF);
@@ -660,7 +664,7 @@ bool CObject::checkSolidD( int x1, int x2, int y2)
 {
 	stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 
-	// Check for right from the object
+	// Check for down from the object
 	if(solid)
 	{
 		for(int c=x1 ; c<=x2 ; c += COLISION_RES)
@@ -693,10 +697,6 @@ void CObject::kill()
 // or priority tile!
 void CObject::draw()
 {
-	int mx, my;
-	int tl,xsize,ysize;
-	int xa,ya;
-
 	CSprite &Sprite = g_pGfxEngine->getSprite(sprite);
     SDL_Surface *sfc = g_pVideoDriver->getBlitSurface();
 
@@ -714,36 +714,7 @@ void CObject::draw()
 	    {
 	        // handle priority tiles and tiles with masks
 	        // get the upper-left coordinates to start checking for tiles
-	        mx = (x>>CSF);
-	        my = (y>>CSF);
-
-	        // get the xsize/ysize of this sprite--round up to the nearest 16
-	        xsize = ((Sprite.getWidth()>>4)<<4);
-	        if (xsize != Sprite.getWidth()) xsize+=16;
-
-	        ysize = ((Sprite.getHeight()>>4)<<4);
-	        if (ysize != Sprite.getHeight()) ysize+=16;
-
-	        tl = mp_Map->at(mx,my);
-	        mx<<=4;
-	        my<<=4;
-
-	        // now redraw any priority/masked tiles that we covered up
-	        // with the sprite
-	        SDL_Rect sfc_rect;
-	        sfc_rect.w = sfc_rect.h = 16;
-
-	        for(ya=0;ya<=ysize;ya+=16)
-	        {
-				for(xa=0;xa<=xsize;xa+=16)
-				{
-					tl = mp_Map->at((mx+xa)>>4,(my+ya)>>4);
-					if(mp_Map->mp_tiles[tl].behaviour == -2)
-						mp_Map->drawAnimatedTile(sfc, mx+xa-mp_Map->m_scrollx, my+ya-mp_Map->m_scrolly, tl+1);
-					else if (mp_Map->mp_tiles[tl].behaviour == -1)
-						mp_Map->drawAnimatedTile(sfc, mx+xa-mp_Map->m_scrollx, my+ya-mp_Map->m_scrolly, tl);
-				}
-	        }
+    		drawMask(sfc, Sprite, (x>>CSF), (y>>CSF));
 	    }
 	}
 
@@ -753,6 +724,44 @@ void CObject::draw()
 	bboxY1 = Sprite.m_bboxY1;
 	bboxY2 = Sprite.m_bboxY2;
 }
+
+////
+// Functions finally draws the object also considering that there could be a masked
+// or priority tile!
+void CObject::drawMask(SDL_Surface *dst, CSprite &Sprite, int mx, int my)
+{
+	int tl,xsize,ysize;
+	int xa,ya;
+
+    // get the xsize/ysize of this sprite--round up to the nearest 16
+    xsize = ((Sprite.getWidth()>>4)<<4);
+    if (xsize != Sprite.getWidth()) xsize+=16;
+
+    ysize = ((Sprite.getHeight()>>4)<<4);
+    if (ysize != Sprite.getHeight()) ysize+=16;
+
+    tl = mp_Map->at(mx,my);
+    mx<<=4;
+    my<<=4;
+
+    // now redraw any priority/masked tiles that we covered up
+    // with the sprite
+    //SDL_Rect sfc_rect;
+    //sfc_rect.w = sfc_rect.h = 16;
+
+    for(ya=0;ya<=ysize;ya+=16)
+    {
+		for(xa=0;xa<=xsize;xa+=16)
+		{
+			tl = mp_Map->at((mx+xa)>>4,(my+ya)>>4);
+			if(mp_Map->mp_tiles[tl].behaviour == -2) // case when when has a masked graphic
+				mp_Map->drawAnimatedTile(dst, mx+xa-mp_Map->m_scrollx, my+ya-mp_Map->m_scrolly, tl+1);
+			else if (mp_Map->mp_tiles[tl].behaviour == -1) // case when tile is just foreground
+				mp_Map->drawAnimatedTile(dst, mx+xa-mp_Map->m_scrollx, my+ya-mp_Map->m_scrolly, tl);
+		}
+    }
+}
+
 
 ///
 // Cleanup Routine

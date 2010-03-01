@@ -38,6 +38,12 @@ mp_StatusScr(NULL)
 {
 	mp_object = &m_Object;
 
+	// Ankhshield is a special object the player is holded.
+	// It's normally seen in Ep3 and when he gets invincible by the ankh
+	pAnkhshield = new CObject(&map);
+	pAnkhshield->solid = false;
+	pAnkhshield->exists = true;
+
 	// Set every value in the class to zero.
     memset(&inventory, 0, sizeof(stInventory));
     setDefaultStartValues();
@@ -97,6 +103,11 @@ void CPlayer::setDefaultStartValues()
 	godmode  = false;
     inventory.extralifeat = 20000;
     inventory.lives = 4;
+	
+	m_scrolltriggerright = 168;
+	m_scrolltriggerleft = 152;
+	m_scrolltriggerup = 92;
+	m_scrolltriggerdown = 108;
 
     if (m_episode==1) inventory.charges = 0;
 	else if (m_episode==2) inventory.charges = 3;
@@ -152,7 +163,7 @@ bool CPlayer::scrollTriggers()
 	py = (getYPosition()>>STC)-scroll_y;
 
 	// left-right scrolling
-	if(px > SCROLLTRIGGERRIGHT && scroll_x < mp_map->m_maxscrollx)
+	if(px > m_scrolltriggerright && scroll_x < mp_map->m_maxscrollx)
 	{
 		do{
 			px = (getXPosition()>>STC)-scroll_x;
@@ -160,7 +171,7 @@ bool CPlayer::scrollTriggers()
 		}while(px > 226 && scroll_x < mp_map->m_maxscrollx);
 		scrollchanged = true;
 	}
-	else if(px < SCROLLTRIGGERLEFT && scroll_x > 32)
+	else if(px < m_scrolltriggerleft && scroll_x > 32)
 	{
 		do{
 			px = (getXPosition()>>STC)-scroll_x;
@@ -170,7 +181,7 @@ bool CPlayer::scrollTriggers()
 	}
 
 	// up-down scrolling
-	if (py > SCROLLTRIGGERDOWN && scroll_y < mp_map->m_maxscrolly)
+	if (py > m_scrolltriggerdown && scroll_y < mp_map->m_maxscrolly)
 	{
 		do{
 			py = (getYPosition()>>STC)-scroll_y;
@@ -178,7 +189,7 @@ bool CPlayer::scrollTriggers()
 		}while(py > 150 && scroll_y < mp_map->m_maxscrolly);
 		scrollchanged = true;
 	}
-	else if ( py < SCROLLTRIGGERUP && scroll_y > 32  )
+	else if ( py < m_scrolltriggerup && scroll_y > 32  )
 	{
 		do{
 			py = (getYPosition()>>STC)-scroll_y;
@@ -732,7 +743,11 @@ void CPlayer::ProcessInput()
 	
 	if(g_pInput->getTwoButtonFiring(m_index))
 	{
-		if(playcontrol[PA_JUMP] && playcontrol[PA_POGO])
+		if(playcontrol[PA_FIRE])
+		{
+			playcontrol[PA_FIRE] = 0;
+		}
+		else if(playcontrol[PA_JUMP] && playcontrol[PA_POGO])
 		{
 			playcontrol[PA_FIRE] = 1;
 			playcontrol[PA_JUMP] = 0;
@@ -769,6 +784,13 @@ void CPlayer::freeze()
 bool CPlayer::checkObjSolid()
 {
 	supportedbyobject = false;
+
+	// This code prevents Keen making stick in the air when a supported object leaves him
+	if(getYDownPos()+1 == (((getYDownPos()+1)>>CSF)<<CSF))
+		blockedd = checkSolidD(getXLeftPos(), getXRightPos(), getYDownPos()+1);
+	else
+		blockedd = false;
+
 	std::vector<CObject>::iterator it_obj = mp_object->begin();
 	for( ; it_obj != mp_object->end() ; it_obj++ )
 	{
@@ -801,6 +823,18 @@ bool CPlayer::checkObjSolid()
 		}
 	}
 	return true;
+}
+
+// Draws the Player actual frame
+// Master class CObject is called, but also his puppy
+// object ankhframe if he is in this status.
+void CPlayer::draw()
+{
+	CObject::draw();
+
+	// Here comes the part of the ankhshield
+	if(ankhtime)
+		pAnkhshield->draw();
 }
 
 // Draws the Status screen and return false, when it's still open.

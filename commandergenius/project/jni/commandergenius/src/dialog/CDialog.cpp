@@ -107,13 +107,6 @@ void CDialog::setObjectType(Uint8 ID, Uint8 type)
 }
 
 ///
-// Retrieval functions
-///
-int CDialog::getSelection()
-{	return m_selected_ID;
-}
-
-///
 // Process routine
 ///
 void CDialog::processInput(int move)
@@ -161,6 +154,7 @@ void CDialog::processInput(int move)
 				m_name = m_dlgobject.at(m_selected_ID)->m_OptionText->m_text;
 			}
 		}while(!m_dlgobject.at(m_selected_ID)->m_selectable);
+
 		if(g_pInput->getPulsedCommand((m_key == 'u') ? IC_DOWN : IC_RIGHT, 60))
 		{
 			do
@@ -186,7 +180,9 @@ void CDialog::processInput(int move)
 					m_name = m_dlgobject.at(m_selected_ID)->m_OptionText->m_text;
 
 					if(m_selected_ID >= m_h-2+m_scroll)
+					{
 						m_scroll++;
+					}
 
 					if(!m_dlgobject.at(m_selected_ID)->m_selectable)
 					{

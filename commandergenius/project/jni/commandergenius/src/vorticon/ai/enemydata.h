@@ -102,7 +102,7 @@ typedef struct stTankData
 	
 	unsigned int timer,animtimer;
 	unsigned char frame;
-	unsigned int dist_traveled;
+	unsigned int dist_to_travel;
 	
 	unsigned char movedir;
 	
@@ -155,6 +155,7 @@ typedef struct stIceChunk
 {
 	int vector_x, vector_y;
 	int veloc_x, veloc_y;
+	int timer;
 } stIceChunk;
 
 

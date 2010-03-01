@@ -13,7 +13,7 @@ MOTHER_HURT, MOTHER_DEAD
 #define MOTHER_WALK_ANIM_RATE     3
 #define MOTHER_WALK_SPD           12
 
-#define MOTHER_SPIT_PROB          10
+#define MOTHER_SPIT_PROB          9
 #define MOTHER_SPIT_PROB_HARD     40
 #define MOTHER_SPIT_SHOW_TIME     25
 
@@ -50,7 +50,11 @@ void CObjectAI::mother_ai( CObject& object, bool hardmode )
 		object.canbezapped = 1;
 		object.needinit = 0;
 	}
-	if (object.ai.mother.state==MOTHER_DEAD) return;
+	if (object.ai.mother.state==MOTHER_DEAD)
+	{
+		object.sprite = MOTHER_DEAD_FRAME;
+		return;
+	}
 
 	if (object.touchPlayer && !m_Player[object.touchedBy].pdie)
 	{
@@ -145,12 +149,11 @@ void CObjectAI::mother_ai( CObject& object, bool hardmode )
 		else object.ai.mother.timer++;
 		break;
 	case MOTHER_HURT:
-		object.sprite = MOTHER_HURT_FRAME;
 		if (object.ai.mother.timer > MOTHER_HURT_SHOW_TIME)
 		{
 			if (object.ai.mother.hittimes >= MOTHER_HP)
 			{
-				object.sprite = MOTHER_DEAD_FRAME;
+				object.sprite = MOTHER_HURT_FRAME;
 				object.ai.mother.state = MOTHER_DEAD;
 				object.canbezapped = 0;
 				object.ai.mother.timer = 0;

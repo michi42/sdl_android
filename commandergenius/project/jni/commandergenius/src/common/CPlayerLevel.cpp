@@ -13,6 +13,7 @@
 #include "../sdl/CInput.h"
 #include "../graphics/CGfxEngine.h"
 #include "../hqp/CMusic.h"
+#include "../vorticon/spritedefines.h"
 #include "CPhysicsSettings.h"
 
 #define PDIEFRAME             22
@@ -83,11 +84,7 @@ void CPlayer::touchedExit()
 		// that needs fixing, hopefully we will fix all of those
 		
 		// if player has ankh shut it off
-		if (ankhtime)
-		{
-			ankhtime = 0;
-			mp_object->at(ankhshieldobject).exists = false;
-		}
+		ankhtime = 0;
 		
 		ppogostick = false;
 		
@@ -431,7 +428,7 @@ void CPlayer::JumpAndPogo()
 							}
 							else if(playcontrol[PA_JUMP] && pogofirsttime)
 							{
-								pjumpupspeed = mp_PhysicsSettings->player.maxpogospeed;
+								pjumpupspeed = mp_PhysicsSettings->player.impossiblepogospeed;
 							}
 						}
 						else
@@ -512,6 +509,7 @@ void CPlayer::JumpAndPogo()
 				if (pjumpupspeed <= 0)
 				{
 					pjumpupspeed = 0;
+					pfallspeed = mp_PhysicsSettings->player.max_fallspeed;
 					pjumping = PJUMPLAND;
 				}
 				else
@@ -561,9 +559,9 @@ void CPlayer::JumpAndPogo()
 		if(!ppogostick)
 		{
 			if (playcontrol[PA_X] < 0)
-				xinertia-=3;
+				xinertia-=4;
 			if (playcontrol[PA_X] > 0)
-				xinertia+=3;
+				xinertia+=4;
 		}
 		else if(ppogostick)
 		{
@@ -581,9 +579,9 @@ void CPlayer::JumpAndPogo()
 		}
 
 		if (playcontrol[PA_X] < 0)
-			xinertia-=2;
+			xinertia-=4;
 		if (playcontrol[PA_X] > 0)
-			xinertia+=2;
+			xinertia+=4;
 	}
 	
     // If we are in Godmode, use the Pogo, and pressing the jump button, make the player fly
@@ -644,7 +642,7 @@ stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 		psemisliding = false;
 
 		// Check if player is on ice
-		if(!pjumping)
+		if(!pjumping && !ppogostick)
 		{
 			int ice = TileProperty[mp_map->at(getXLeftPos()>>CSF, (ydown+1)>>CSF)].bup;
 			ice |= TileProperty[mp_map->at(getXRightPos()>>CSF, (ydown+1)>>CSF)].bup;
@@ -692,6 +690,7 @@ stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 			// you're starting to move the other direction
 			// (set inertia to 0 if it's contrary to player's current dir)
 		}
+		pfallspeed = 0;
 	}   // close "not falling"
 
 	// ensure no sliding if we fall or jump off of ice
@@ -707,7 +706,6 @@ stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 void CPlayer::raygun()
 {
 	bool canRefire;
-	CObject *pPlayerObject = &mp_object->at(m_index);
 	
 	if (pfireframetimer) pfireframetimer--;
 	
@@ -743,7 +741,7 @@ void CPlayer::raygun()
 				inventory.charges--;
 				pshowdir = pdir;
 				
-				g_pSound->playStereofromCoord(SOUND_KEEN_FIRE, PLAY_NOW, pPlayerObject->scrx);
+				g_pSound->playStereofromCoord(SOUND_KEEN_FIRE, PLAY_NOW, scrx);
 				
 				ydir = getYPosition()+(9<<STC);
 				if (pdir==RIGHT) xdir = getXRightPos()+xinertia;
@@ -762,7 +760,7 @@ void CPlayer::raygun()
 			else
 			{ // uh oh, out of bullets
 				// click!
-				g_pSound->playStereofromCoord(SOUND_GUN_CLICK, PLAY_NOW, pPlayerObject->scrx);
+				g_pSound->playStereofromCoord(SOUND_GUN_CLICK, PLAY_NOW, scrx);
 				
 			}  // end "do we have charges?"
 		} // end "limit how quickly shots can be fired"
@@ -827,22 +825,64 @@ void CPlayer::SelectFrame()
 
 void CPlayer::ankh()
 {
-	int o;
+	const unsigned int ANKH_FLICKER_DELAY = 3;
+	const unsigned int ANKH_SHIELD_FRAME = 61;
+
 	if (!ankhtime) return;
-	
-	o = ankhshieldobject;
-	mp_object->at(o).moveTo(getXPosition()-(8<<CSF), getYPosition()-(8<<CSF));
-	
-	ankhtime--;
-	if (!ankhtime)
-		mp_object->at(o).exists = 0;
-	
 	else if (ankhtime < ANKH_STAGE3_TIME)
-		mp_object->at(o).ai.se.state = ANKH_STATE_FLICKERSLOW;
+		pAnkhshield->ai.se.state = ANKH_STATE_FLICKERSLOW;
 	else if (ankhtime < ANKH_STAGE2_TIME)
-		mp_object->at(o).ai.se.state = ANKH_STATE_FLICKERFAST;
+		pAnkhshield->ai.se.state = ANKH_STATE_FLICKERFAST;
 	else
-		mp_object->at(o).ai.se.state = ANKH_STATE_NOFLICKER;
+		pAnkhshield->ai.se.state = ANKH_STATE_NOFLICKER;
+
+	ankhtime--;
+
+	pAnkhshield->moveToForce(getXPosition()-(8<<STC), getYPosition()-(8<<STC));
+
+	if (pAnkhshield->needinit)
+	{
+		pAnkhshield->ai.se.frame = 0;
+		pAnkhshield->ai.se.timer = 0;
+		pAnkhshield->inhibitfall = 1;
+		pAnkhshield->canbezapped = 0;
+		pAnkhshield->needinit = 0;
+
+		pAnkhshield->ai.se.state = ANKH_STATE_NOFLICKER;
+	}
+
+	switch(pAnkhshield->ai.se.state)
+	{
+	case ANKH_STATE_NOFLICKER:
+		pAnkhshield->sprite = ANKH_SHIELD_FRAME + (pAnkhshield->ai.se.frame&1);
+		break;
+	case ANKH_STATE_FLICKERFAST:
+		if (pAnkhshield->ai.se.frame&1)
+			pAnkhshield->sprite = BLANKSPRITE;
+		else
+		{
+			if (pAnkhshield->ai.se.frame&2)
+				pAnkhshield->sprite = ANKH_SHIELD_FRAME+1;
+			else
+				pAnkhshield->sprite = ANKH_SHIELD_FRAME;
+		}
+		break;
+	case ANKH_STATE_FLICKERSLOW:
+		if (pAnkhshield->ai.se.frame>4)
+			pAnkhshield->sprite = BLANKSPRITE;
+		else
+			pAnkhshield->sprite = ANKH_SHIELD_FRAME;
+		break;
+	}
+
+	if (pAnkhshield->ai.se.timer > ANKH_FLICKER_DELAY)
+	{
+		pAnkhshield->ai.se.frame++;
+		if (pAnkhshield->ai.se.frame>8) pAnkhshield->ai.se.frame = 0;
+		pAnkhshield->ai.se.timer = 0;
+	}
+	else pAnkhshield->ai.se.timer++;
+
 }
 
 // yorp/scrub etc "bump".
@@ -850,26 +890,37 @@ void CPlayer::ankh()
 // if solid = true, object acts like a solid "wall".
 void CPlayer::bump( int pushamt, bool solid )
 {
-	playpushed_x = pushamt;
-	
-	if (pushamt > 0 && xinertia < pushamt) xinertia = pushamt;
-	else if (xinertia > pushamt) xinertia = pushamt;
+	if (pushamt > 0 && xinertia < pushamt)
+	{
+		pshowdir = pdir = RIGHT;
+		xinertia = pushamt;
+	}
+	else if (xinertia > pushamt)
+	{
+		pshowdir = pdir = LEFT;
+		xinertia = pushamt;
+	}
+
+	pwalking = true;
 
 	if (solid)
 	{
+		playpushed_x = pushamt;
 		if (pushamt > 0)
 		{
+			pshowdir = pdir = RIGHT;
 			if (xinertia < 0)
 				xinertia = 0;
 		}
 		else
 		{
+			pshowdir = pdir = LEFT;
 			if (xinertia > 0)
 				xinertia = 0;
 		}
+		playpushed_decreasetimer = 0;
 	}
 	
-	playpushed_decreasetimer = 0;
 	if (!pjumping)
 		pdir = pshowdir = (pushamt<0) ? LEFT : RIGHT;
 }
@@ -901,11 +952,9 @@ void CPlayer::checkSolidDoors()
 		blockedu = true;	}
 }
 
-
 int CPlayer::pollLevelTrigger()
 {
 	int trigger = m_Level_Trigger;
 	m_Level_Trigger = LVLTRIG_NONE;
 	return trigger;
 }
-

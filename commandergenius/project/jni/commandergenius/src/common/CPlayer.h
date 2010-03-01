@@ -19,12 +19,6 @@
 #include <vector>
 #include <string>
 
-// scroll triggers
-const int SCROLLTRIGGERRIGHT = 205;
-const int SCROLLTRIGGERLEFT = 130;
-const int SCROLLTRIGGERUP = 100;
-const int SCROLLTRIGGERDOWN = 140;
-
 enum level_triggers{
 	LVLTRIG_NONE, LVLTRIG_TANTALUS_RAY, LVLTRIG_BRIDGE, LVLTRIG_LIGHT
 };
@@ -95,6 +89,7 @@ public:
 
 	bool checkObjSolid();
 
+	void draw();
 	bool drawStatusScreen();
 	bool scrollTriggers();
 	void give_keycard(int doortile);
@@ -171,7 +166,8 @@ public:
 	bool object_chosen;
 	unsigned char dpadcount, dpadlastcount;
 
-	unsigned int ankhtime, ankhshieldobject;
+	unsigned int ankhtime;
+	CObject *pAnkhshield;
 
 	stInventory inventory;
 
@@ -198,6 +194,12 @@ private:
 	int level_done_timer;
 
 	int m_Level_Trigger;
+	
+	// scroll triggers
+	int m_scrolltriggerright;
+	int m_scrolltriggerleft;
+	int m_scrolltriggerup;
+	int m_scrolltriggerdown;
 
 	// defined under CPlayerItems.cpp
 	bool getGoodie(int px, int py);

@@ -94,11 +94,6 @@ void CSprite::applyTransparency()
 ///
 // Getters and Setters
 ///
-void CSprite::setSize(Uint8 w, Uint8 h)
-{
-	m_xsize = w; m_ysize = h;
-}
-
 void CSprite::setBouncingBoxCoordinates( Uint16 bboxx1, Uint16 bboxy1, Uint16 bboxx2, Uint16 bboxy2 )
 {
 	m_bboxX1 = bboxx1;
@@ -118,7 +113,7 @@ void CSprite::copy( CSprite &Destination, SDL_Color *Palette )
 	Destination.createSurface( m_surface->flags, Palette );
 	
 	SDL_FillRect(Destination.getSDLSurface(), NULL, COLORKEY);
-	//SDL_BlitSurface( m_surface, NULL, Destination.getSDLSurface(), NULL);
+	SDL_BlitSurface( m_surface, NULL, Destination.getSDLSurface(), NULL);
 }
 
 // replaces all instances of color find in sprite s with
@@ -141,20 +136,6 @@ void CSprite::replaceSpriteColor( Uint16 find, Uint16 replace, Uint16 miny )
 		}
 	}
 	if(SDL_MUSTLOCK(m_surface)) SDL_UnlockSurface(m_surface);
-}
-
-
-///
-// Getters and Setters
-///
-SDL_Surface *CSprite::getSDLSurface()
-{
-	return m_surface;
-}
-
-SDL_Surface *CSprite::getSDLMaskSurface()
-{
-	return m_masksurface;
 }
 
 ///

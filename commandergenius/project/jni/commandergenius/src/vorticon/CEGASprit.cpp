@@ -206,7 +206,7 @@ bool CEGASprit::loadData(const std::string& filename, bool compresseddata)
 	}
 	
 	// Apply the sprites for player 2,3 and 4
-	//DerivePlayerSprites( g_pGfxEngine->getSpriteVec() );
+	DerivePlayerSprites( g_pGfxEngine->getSpriteVec() );
 
 	// Now create special sprites, like those for effects and the doors!
 	DeriveSpecialSprites( g_pGfxEngine->Tilemap, g_pGfxEngine->getSpriteVec() );
@@ -298,13 +298,13 @@ void CEGASprit::LoadSpecialSprites( std::vector<CSprite> &sprite )
 	LoadTGASprite("500.tga", sprite[PT500_SPRITE] );
 	LoadTGASprite("1000.tga", sprite[PT1000_SPRITE] );
 	LoadTGASprite("5000.tga", sprite[PT5000_SPRITE] );
-	LoadTGASprite("demobox.tga", sprite[DEMOBOX_SPRITE] );
-	LoadTGASprite("arrowlr.tga", sprite[ARROWLR_SPRITE] );
-	LoadTGASprite("arrowud.tga", sprite[ARROWUD_SPRITE] );
-	LoadTGASprite("arrowul.tga", sprite[ARROWUL_SPRITE] );
-	LoadTGASprite("arrowur.tga", sprite[ARROWUR_SPRITE] );
-	LoadTGASprite("arrowu.tga", sprite[ARROWU_SPRITE] );
-	LoadTGASprite("arrowd.tga", sprite[ARROWD_SPRITE] );
+	//LoadTGASprite("demobox.tga", sprite[DEMOBOX_SPRITE] );
+	//LoadTGASprite("arrowlr.tga", sprite[ARROWLR_SPRITE] );
+	//LoadTGASprite("arrowud.tga", sprite[ARROWUD_SPRITE] );
+	//LoadTGASprite("arrowul.tga", sprite[ARROWUL_SPRITE] );
+	//LoadTGASprite("arrowur.tga", sprite[ARROWUR_SPRITE] );
+	//LoadTGASprite("arrowu.tga", sprite[ARROWU_SPRITE] );
+	//LoadTGASprite("arrowd.tga", sprite[ARROWD_SPRITE] );
 }
 
 void CEGASprit::DerivePlayerSprites( std::vector<CSprite> &sprites )
@@ -315,37 +315,36 @@ void CEGASprit::DerivePlayerSprites( std::vector<CSprite> &sprites )
 	{
 		s = SECOND_PLAYER_BASEFRAME+i;
 		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
-		sprites.at(s).replaceSpriteColor( 13, 10 ,0 );
-		sprites.at(s).replaceSpriteColor( 5, 2 ,0 );
-		sprites.at(s).replaceSpriteColor( 9, 14 ,8 );
-		sprites.at(s).replaceSpriteColor( 1, 6 ,8 );
-		sprites.at(s).replaceSpriteColor( 12, 11 ,0 );
-		sprites.at(s).replaceSpriteColor( 4, 3 ,0 );
+		sprites.at(s).replaceSpriteColor( 13, 11 ,0 );
+		sprites.at(s).replaceSpriteColor( 5, 3 ,0 );
+		//sprites.at(s).replaceSpriteColor( 9, 14 ,8 );
+		//sprites.at(s).replaceSpriteColor( 1, 6 ,8 );
+		sprites.at(s).replaceSpriteColor( 12, 9 ,0 );
+		sprites.at(s).replaceSpriteColor( 4, 1 ,0 );
 		sprites.at(s).optimizeSurface();
 	}
 	for(size_t i=0;i<48;i++)
 	{
 		s = THIRD_PLAYER_BASEFRAME+i;
 		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
-		sprites.at(s).replaceSpriteColor( 13, 12, 0 ); // Shirt light
-		sprites.at(s).replaceSpriteColor( 5, 4, 0 ); // Shirt dark
-		sprites.at(s).replaceSpriteColor( 9, 10, 8 ); // Trousers light
-		sprites.at(s).replaceSpriteColor( 1, 2, 8 ); // Trousers dark
-		sprites.at(s).replaceSpriteColor( 12, 4, 16 ); // Shoes light
-		sprites.at(s).replaceSpriteColor( 4, 6, 16 ); // Shoes dark
+		sprites.at(s).replaceSpriteColor( 13, 10, 0 ); // Shirt light
+		sprites.at(s).replaceSpriteColor( 5, 2, 0 ); // Shirt dark
+		//sprites.at(s).replaceSpriteColor( 9, 10, 8 ); // Trousers light
+		//sprites.at(s).replaceSpriteColor( 1, 2, 8 ); // Trousers dark
+		sprites.at(s).replaceSpriteColor( 12, 2, 16 ); // Shoes light
+		sprites.at(s).replaceSpriteColor( 4, 0, 16 ); // Shoes dark
 		sprites.at(s).optimizeSurface();
 	}
 	for(size_t i=0;i<48;i++)
 	{
 		s = FOURTH_PLAYER_BASEFRAME+i;
 		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
-		sprites.at(i).copy( sprites.at(s), g_pGfxEngine->Palette.m_Palette );
-		sprites.at(s).replaceSpriteColor( 13, 11, 0 ); // Shirt light
-		sprites.at(s).replaceSpriteColor( 5, 3, 0 ); // Shirt dark
-		sprites.at(s).replaceSpriteColor( 9, 11, 8 ); // Trousers light
-		sprites.at(s).replaceSpriteColor( 1, 9, 8 ); // Trousers dark
-		sprites.at(s).replaceSpriteColor( 12, 4, 16 ); // Shoes light
-		sprites.at(s).replaceSpriteColor( 4, 6, 16 ); // Shoes dark
+		sprites.at(s).replaceSpriteColor( 13, 14, 0 ); // Shirt light
+		sprites.at(s).replaceSpriteColor( 5, 6, 0 ); // Shirt dark
+		//sprites.at(s).replaceSpriteColor( 9, 11, 8 ); // Trousers light
+		//sprites.at(s).replaceSpriteColor( 1, 9, 8 ); // Trousers dark
+		sprites.at(s).replaceSpriteColor( 12, 6, 16 ); // Shoes light
+		sprites.at(s).replaceSpriteColor( 4, 0, 16 ); // Shoes dark
 		sprites.at(s).optimizeSurface();
 	}
 }
@@ -364,8 +363,10 @@ void CEGASprit::DeriveSpecialSprites( CTilemap *tilemap, std::vector<CSprite> &s
 			CreateYellowSpriteofTile( tilemap, t, sprites.at(GUNUP_SPRITE) );
 		
 		// Keycards
-		if( TileProperty[t].behaviour>=18 && tilemap->mp_tiles[t].behaviour<=21 )
-			CreateYellowSpriteofTile( tilemap, t, sprites.at(PTCARDB_SPRITE+tilemap->mp_tiles[t].behaviour-18));
+		if( TileProperty[t].behaviour==18 )	CreateYellowSpriteofTile( tilemap, t, sprites.at(PTCARDY_SPRITE));
+		if( TileProperty[t].behaviour==19 )	CreateYellowSpriteofTile( tilemap, t, sprites.at(PTCARDG_SPRITE));
+		if( TileProperty[t].behaviour==20 )	CreateYellowSpriteofTile( tilemap, t, sprites.at(PTCARDR_SPRITE));
+		if( TileProperty[t].behaviour==21 )	CreateYellowSpriteofTile( tilemap, t, sprites.at(PTCARDB_SPRITE));
 		
 		// Single Bullet in Ep3
 		if( TileProperty[t].behaviour==28 )

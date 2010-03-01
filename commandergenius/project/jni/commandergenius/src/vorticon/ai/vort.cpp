@@ -10,7 +10,6 @@
 
 void CObjectAI::vort_ai(CObject &object, int level, int episode, char difficulty, bool dark)
 {
-	stTile *TileProperty = g_pGfxEngine->Tilemap->mp_tiles;
 	bool kill;
 
 	 if (object.needinit)
@@ -159,8 +158,16 @@ void CObjectAI::vort_ai(CObject &object, int level, int episode, char difficulty
 			 break;
 	 case VORT_WALK:
 			 object.ai.vort.dist_traveled++;
+			 int odds;
 	 
-			 if (getProbability(VORT_JUMP_PROB))
+			 switch(difficulty)
+			 {
+			 case 0: odds = getProbability(VORT_JUMP_PROB_EASY); break;
+			 case 2: odds = getProbability(VORT_JUMP_PROB_HARD); break;
+			 default: odds = getProbability(VORT_JUMP_PROB); break;
+			 }
+
+			 if (odds)
 			 {  // let's jump.
 				 if (!dark && !object.blockedu)
 				 {

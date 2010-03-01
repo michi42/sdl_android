@@ -466,9 +466,7 @@ void InitBaseSearchPaths() {
 	AddToFileList(&basesearchpaths, ".");
 	AddToFileList(&basesearchpaths, "${BIN}");
 #else // all other systems (Linux, *BSD, OS/2, ...)
-	#ifndef ANDROID
 	AddToFileList(&basesearchpaths, "${HOME}/.CommanderGenius");
-	#endif
 	AddToFileList(&basesearchpaths, ".");
 	AddToFileList(&basesearchpaths, SYSTEM_DATA_DIR"/commandergenius"); // no use of ${SYSTEM_DATA}, because it is uncommon and could cause confusion to the user
 #endif
@@ -657,8 +655,11 @@ bool OpenGameFileR(std::ifstream& f, const std::string& path, std::ios_base::ope
 
 	std::string fullfn = GetFullFileName(path);
 	if(fullfn.size() != 0) {
-		f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
-		return f.is_open();
+		try {
+			f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
+			return f.is_open();
+		} catch(...) {}
+		return false;
 	}
 
 	return false;
@@ -670,8 +671,11 @@ bool OpenGameFileW(std::ofstream& f, const std::string& path, std::ios_base::ope
 
 	std::string fullfn = GetWriteFullFileName(path, true);
 	if(fullfn.size() != 0) {
-		f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
-		return f.is_open();
+		try {
+			f.open(Utf8ToSystemNative(fullfn).c_str(), mode);
+			return f.is_open();
+		} catch(...) {}
+		return false;
 	}
 
 	return false;

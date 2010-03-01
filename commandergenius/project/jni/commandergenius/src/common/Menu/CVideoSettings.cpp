@@ -20,6 +20,7 @@ CBaseMenu(menu_type) {
 	m_Resolution.height = g_pVideoDriver->getHeight();
 	m_Resolution.depth = g_pVideoDriver->getDepth();
 	m_FSmode =  g_pVideoDriver->getFullscreen();
+	g_pVideoDriver->initResolutionList();
 
 	const unsigned short BUFFER_SIZE=256;
 	char Buffer[BUFFER_SIZE];
@@ -101,17 +102,15 @@ void CVideoSettings::processSpecific(){
 		}
 		else
 		{
-		m_mustclose = true;
-		m_MenuType = CONFIGURE;
+			m_mustclose = true;
+			m_MenuType = CONFIGURE;
 		}
 	}
 
 	if( m_selection != -1)
 	{
 		if(m_selection < 7)
-		{
 			m_changed = true;
-		}
 		
 		if(m_selection == 0)
 		{

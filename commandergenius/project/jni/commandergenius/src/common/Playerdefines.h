@@ -22,8 +22,8 @@ PA_FIRE, PA_STATUS
 #define PFASTINCRATE_POGO  2      // rate when pogo stick is out
 // rates at which player slows down while he is walking suddenly player does not
 // move him anymore
-#define PFRICTION_RATE_INAIR      0
-#define PFRICTION_RATE_ONGROUND   5
+#define PFRICTION_RATE_INAIR      2
+#define PFRICTION_RATE_ONGROUND   6
 #define PFRICTION_RATE_WM         32
 // rate at which player walking animation is shown
 #define PWALKANIMRATE             8
@@ -149,9 +149,9 @@ enum jumpstates{
 // stage1 is no flicker of the shield, changes colors
 // in stage2 the shield flickers fast, changes colors
 // in stage3 the shield flashes slow, no color change
-#define ANKH_STAGE1_TIME    3000
-#define ANKH_STAGE2_TIME    1500
-#define ANKH_STAGE3_TIME    500
+#define ANKH_STAGE1_TIME    750
+#define ANKH_STAGE2_TIME    380
+#define ANKH_STAGE3_TIME    125
 #define PLAY_ANKH_TIME      (ANKH_STAGE1_TIME+ANKH_STAGE2_TIME+ANKH_STAGE3_TIME)
 // these correspond stage 1,2 and 3 respectively
 #define ANKH_STATE_NOFLICKER    0

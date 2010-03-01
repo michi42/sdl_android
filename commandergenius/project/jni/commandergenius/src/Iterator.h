@@ -43,7 +43,7 @@ public:
 	STLIteratorBase(const STLIteratorBase& it) : i(it.i), obj(it.obj) {}	
 	virtual bool isValid() { return i != obj.end(); }
 	virtual void next() { ++i; }
-	virtual bool operator==(const Iterator<_T>& other) const { const STLIteratorBase* ot = reinterpret_cast< const STLIteratorBase* > (&other); return ot && &ot->obj == &obj && ot->i == i; }
+	virtual bool operator==(const Iterator<_T>& other) const { const STLIteratorBase* ot = dynamic_cast< const STLIteratorBase* > (&other); return ot && &ot->obj == &obj && ot->i == i; }
 };
 
 
@@ -53,7 +53,7 @@ public:
 	STLIterator(_STLT& o) : STLIteratorBase<_STLT, _T>(o) {}
 	STLIterator(const STLIterator& it) : STLIteratorBase<_STLT, _T>(it) {}	
 	virtual Iterator<_T>* copy() const { return new STLIterator(*this); }
-	virtual bool operator==(const Iterator<_T>& other) const { const STLIterator* ot = reinterpret_cast< const STLIterator* > (&other); return ot != NULL && STLIteratorBase<_STLT, _T> :: operator == ( other ); }
+	virtual bool operator==(const Iterator<_T>& other) const { const STLIterator* ot = dynamic_cast< const STLIterator* > (&other); return ot != NULL && STLIteratorBase<_STLT, _T> :: operator == ( other ); }
 	virtual _T get() { return * STLIteratorBase<_STLT, _T> :: i; }
 };
 
@@ -63,7 +63,7 @@ public:
 	STL_MapIterator(_STLT& o) : STLIteratorBase<_STLT, _T> (o) {}
 	STL_MapIterator(const STL_MapIterator& it) : STLIteratorBase<_STLT, _T> (it) {}	
 	virtual Iterator<_T>* copy() const { return new STL_MapIterator(*this); }
-	virtual bool operator==(const Iterator<_T>& other) const { const STL_MapIterator* ot = reinterpret_cast< const STL_MapIterator* > (&other); return ot != NULL && STLIteratorBase<_STLT, _T> :: operator == ( other ); }
+	virtual bool operator==(const Iterator<_T>& other) const { const STL_MapIterator* ot = dynamic_cast< const STL_MapIterator* > (&other); return ot != NULL && STLIteratorBase<_STLT, _T> :: operator == ( other ); }
 	virtual _T get() { return STLIteratorBase<_STLT, _T> :: i -> second; }
 };
 
@@ -88,7 +88,7 @@ public:
 	virtual Iterator<_T*>* copy() const { return new CArrayIterator(*this); }
 	virtual bool isValid() { return i < len; }
 	virtual void next() { ++i; }
-	virtual bool operator==(const Iterator<_T*>& other) const { const CArrayIterator* ot = reinterpret_cast< const CArrayIterator* > (&other); return ot && ot->array == array && ot->i == i; }
+	virtual bool operator==(const Iterator<_T*>& other) const { const CArrayIterator* ot = dynamic_cast< const CArrayIterator* > (&other); return ot && ot->array == array && ot->i == i; }
 	virtual _T* get() { return &array[i]; }
 };
 

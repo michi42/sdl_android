@@ -41,7 +41,7 @@ void CObjectAI::fireball_ai(CObject &object, bool hard)
 	}
 
 	// test if it hit a baddie
-	std::vector<CObject>::iterator it_obj = m_Objvect.begin();
+	std::vector<CObject>::iterator it_obj = m_Objvect.begin()++;
 	for( ; it_obj!=m_Objvect.end() ; it_obj++)
 	{
 		if (!it_obj->exists || it_obj->m_index==object.m_index) continue;

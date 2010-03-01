@@ -71,18 +71,24 @@ bool CSettings::loadDrvCfg()
 	if(!Parser.loadParseFile()) return false;
 	else
 	{
-		int width, height, depth;
+		int width, height, depth, boundl, boundr, boundu, boundd;
 		
 		depth  = Parser.getIntValue("bpp","Video");
 		width  = Parser.getIntValue("width","Video");
 		height = Parser.getIntValue("height","Video");
 		
+		boundl  = Parser.getIntValue("left","Bound");
+		boundr  = Parser.getIntValue("right","Bound");
+		boundu	= Parser.getIntValue("up","Bound");
+		boundd  = Parser.getIntValue("down","Bound");
+
 		if(depth*width*height <= 0)
 		{
 			g_pLogFile->ftextOut(RED,"Error reading the configuration file!<br>");
 			return false;
 		}
 		
+		g_pVideoDriver->setMode(width,height,depth);
 		g_pVideoDriver->setMode(width,height,depth);
 		g_pVideoDriver->isFullscreen(((Parser.getIntValue("fullscreen","Video")) == 1));
 		g_pVideoDriver->setOGLFilter(Parser.getIntValue("OGLfilter","Video"));
@@ -125,6 +131,7 @@ void CSettings::loadDefaultGameCfg()
 	setOption( OPT_ANALOGJOYSTICK, "Analog Joystick", "analog-joystick", 1 );
 	setOption( OPT_LVLREPLAYABILITY, "Replay Levels", "level replayability", 0 );
 	setOption( OPT_RISEBONUS, "Rising Bonus", "rise bonus", 1 );
+	setOption( OPT_SWITCHSCORES, "Score Fix (EP3)", "switch scores", 0 );
 }
 
 bool CSettings::loadGameCfg()

@@ -70,10 +70,6 @@ mp_HighScores(NULL)
 	// Create completed level list
 	memset(mp_level_completed,false,MAX_LEVELS*sizeof(bool));
 
-	// Player are tied to objects like enemies, sprites, etc., so they
-	// can be drawn the same way.
-	//createPlayerObjects();
-
 	m_paused = false;
 	m_showPauseDialog = false;
 
@@ -87,7 +83,7 @@ mp_HighScores(NULL)
 	if(finale) m_level_command = GOTO_FINALE;
 }
 
-// Setup all the player, when one level is started
+// Setup all the players, when one level is started
 void CPlayGame::setupPlayers()
 {
 	m_showKeensLeft=false;
@@ -99,11 +95,13 @@ void CPlayGame::setupPlayers()
 		{
 			it_player->m_playingmode = CPlayer::WORLDMAP;
 			m_showKeensLeft |= ( it_player->pdie == PDIE_DEAD );
+			if(it_player->godmode) it_player->solid = false;
 		}
 		else
 		{
 			it_player->m_playingmode = CPlayer::LEVELPLAY;
 			it_player->sprite = PSTANDFRAME;
+			it_player->solid=true;
 		}
 		it_player->pdie = PDIE_NODIE;
 		
@@ -117,7 +115,7 @@ void CPlayGame::setupPlayers()
 		it_player->setMapData(&m_Map);
 		it_player->setPhysics(&m_PhysicsSettings);
 		it_player->exists = true;
-		it_player->solid=true;
+		if(it_player->m_playingmode == CPlayer::WORLDMAP) it_player->solid=!(it_player->godmode);
 	}
 }
 
@@ -186,20 +184,6 @@ bool CPlayGame::init()
 
 	return true;
 }
-
-/*void CPlayGame::createPlayerObjects()
-{
-	// tie puppy objects so the player can interact in the level
-	for (int i=0 ; i<m_NumPlayers ; i++)
-	{
-		m_Player[i].setDatatoZero();
-		m_Player[i].m_index = i;
-		m_Player[i].m_episode = m_Episode;
-		m_Player[i].mp_levels_completed = mp_level_completed;
-		m_Player[i].mp_option = mp_option;
-		m_Player[i].mp_object=&m_Object;
-	}
-}*/
 
 ////
 // Process Routine
@@ -441,7 +425,7 @@ void CPlayGame::handleFKeys()
     	g_pSound->playSound(SOUND_GUN_CLICK, PLAY_FORCE);
 
     	// Show a message like in the original game
-		m_MessageBoxes.push_back(new CMessageBox(m_Player[0].godmode ? "Godmode enabled" : "Godmode disabled"));
+		m_MessageBoxes.push_back(new CMessageBox(m_Player[0].godmode ? "God mode enabled" : "God mode disabled"));
     	m_paused = true;
     	g_pInput->flushKeys();
     }
@@ -587,7 +571,6 @@ void CPlayGame::collectHighScoreInfo()
 		mp_HighScores->writeHighScoreCommon(m_Player[0].inventory.score);
 }
 
-
 // This function draws the objects that need to be seen on the screen
 void CPlayGame::drawObjects()
 {
@@ -595,10 +578,6 @@ void CPlayGame::drawObjects()
 
 	SDL_Rect gameres = g_pVideoDriver->getGameResolution();
 	
-	std::vector<CObject>::iterator it_obj = m_Object.begin();
-	for(; it_obj!=m_Object.end() ; it_obj++)
-		it_obj->draw();
-
 	// We draw the Player as last, because we want to see him in front of the other objects
 	std::vector<CPlayer>::iterator it_player = m_Player.begin();
 	for (; it_player != m_Player.end() ; it_player++)
@@ -606,17 +585,11 @@ void CPlayGame::drawObjects()
 		if(!it_player->beingteleported)
 			it_player->draw();
 	}
-}
-////
-// Getters
-////
 
-bool CPlayGame::getEndGame() { return m_endgame; }
-bool CPlayGame::getStartGame() { return m_startgame; }
-bool CPlayGame::getExitEvent() { return m_exitgame; }
-char CPlayGame::getEpisode() { return m_Episode; }
-char CPlayGame::getNumPlayers() { return m_NumPlayers; }
-char CPlayGame::getDifficulty() { return m_Difficulty; }
+	std::vector<CObject>::iterator it_obj = m_Object.begin();
+	for(; it_obj!=m_Object.end() ; it_obj++)
+		it_obj->draw();
+}
 
 ////
 // Cleanup Routine

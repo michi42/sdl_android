@@ -27,8 +27,8 @@ public:
 	// main functions
 	void process();
 
-	bool getPlatMoving();
-	void triggerPlat(bool value);
+	bool getPlatMoving() { return PlatExtending; }
+	void triggerPlat(bool value) { PlatExtending = value; }
 
 	virtual ~CObjectAI();
 private:
@@ -36,7 +36,7 @@ private:
 	// main AI functions
 	bool checkforAIObject( CObject &object );
 	void performSpecialAIType( CObject &object );
-	void deleteObj(CObject &object);
+	void deleteObj(CObject &object) { object.exists = false; }
 	void deleteAllObjects();
 
 	// ep1
@@ -46,8 +46,8 @@ private:
 	void vort_initiatejump(CObject &object);
 	void butler_ai(CObject &object, char difficulty);
 	void tank_ai(CObject &object, bool hardmode);
-	bool tank_CanMoveLeft(CObject &object, int h);
-	bool tank_CanMoveRight(CObject &object, int w, int h);
+	bool tank_CanMoveLeft(CObject &object);
+	bool tank_CanMoveRight(CObject &object);
 
 	void icechunk_ai(CObject &object);
 	void smash(CObject &object);
@@ -77,7 +77,6 @@ private:
 	void se_extend_plat(CObject &object, bool &PlatExtending);
 	void se_retract_plat(CObject &object, bool &PlatExtending);
 	void spark_ai(CObject &object, int &sparks_left);
-	void se_ankhshield(CObject &object, int episode);
 	void se_mortimer_arm(CObject &object);
 	void se_mortimer_spark(CObject &object);
 	void se_mortimer_heart(CObject &object);

@@ -49,12 +49,12 @@ void CObjectAI::process()
 				{
 					if ( object.hitdetect(*it_player) )
 					{
-						if (!it_player->godmode)
-						{
+						//if (!it_player->godmode)
+						//{
 							object.touchPlayer = true;
 							object.touchedBy = it_player->m_index;
-						}
-						else
+						//}
+						/*else
 						{
 							if (object.m_type==OBJ_MOTHER || object.m_type==OBJ_BABY ||\
 								object.m_type==OBJ_MEEP || object.m_type==OBJ_YORP)
@@ -62,7 +62,7 @@ void CObjectAI::process()
 								if (object.canbezapped)
 									object.zapped += 100;
 							}
-						}
+						}*/
 						break;
 					}
 				}
@@ -213,24 +213,9 @@ void CObjectAI::kill_all_intersecting_tile(int mpx, int mpy)
 	 }
 }
 
-bool CObjectAI::getPlatMoving()
-{
-	return PlatExtending;
-}
-
-void CObjectAI::triggerPlat(bool value)
-{
-	PlatExtending = value;
-}
-
 ///
 // Cleanup Routine
 ///
-void CObjectAI::deleteObj(CObject &object)
-{
-	object.exists = false;
-}
-
 void CObjectAI::deleteAllObjects()
 {
 	// The real delete happens, when all the AI is done
