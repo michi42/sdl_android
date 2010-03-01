@@ -465,6 +465,8 @@ void InitBaseSearchPaths() {
 	AddToFileList(&basesearchpaths, "${HOME}/Commander Genius");
 	AddToFileList(&basesearchpaths, ".");
 	AddToFileList(&basesearchpaths, "${BIN}");
+#elif defined(ANDROID)
+	AddToFileList(&basesearchpaths, ".");
 #else // all other systems (Linux, *BSD, OS/2, ...)
 	AddToFileList(&basesearchpaths, "${HOME}/.CommanderGenius");
 	AddToFileList(&basesearchpaths, ".");
