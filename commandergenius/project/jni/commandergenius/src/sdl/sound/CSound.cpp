@@ -34,7 +34,7 @@ CSound::CSound() {
 	m_soundslot = NULL;
 	m_MixedForm = NULL;
 	AudioSpec.channels = 2; // Stereo Sound
-#if defined(WIZ) || defined(GP2X)
+#if defined(WIZ) || defined(GP2X) || defined(ANDROID)
 	AudioSpec.format = AUDIO_S16; // 16-bit sound
 #else
 	AudioSpec.format = AUDIO_U8; // 8-bit sound
