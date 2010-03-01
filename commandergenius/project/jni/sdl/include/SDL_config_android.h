@@ -54,5 +54,6 @@
 #define HAVE_MEMSET 1
 #define HAVE_MEMCPY 1
 #define HAVE_MEMMOVE 1
+#include <string.h> // For memset() forward-declaration
 
 #endif /* _SDL_config_minimal_h */
