@@ -154,7 +154,10 @@ static void ANDROIDAUD_CloseAudio(_THIS)
 static int ANDROIDAUD_OpenAudio(_THIS, SDL_AudioSpec *spec)
 {
 	if( ! (spec->format == AUDIO_S8 || spec->format == AUDIO_S16) )
-		return (-1); // TODO: enable format conversion? Don't know how to do that in SDL
+	{
+		__android_log_print(ANDROID_LOG_INFO, "libSDL", "ANDROIDAUD_OpenAudio() failed! Sample format is not AUDIO_S8 or AUDIO_S16");
+ 		return (-1); // TODO: enable format conversion? Don't know how to do that in SDL
+ 	}
 	
 	if( audioMutex == NULL )
 	{
